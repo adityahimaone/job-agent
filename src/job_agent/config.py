@@ -53,7 +53,9 @@ class SheetsConfig(BaseModel):
     backend: str = "csv"  # "csv" | "google"
     directory: str = "~/.job-agent/sheets"
     spreadsheet_id: str = ""
+    # Service-account JSON, or an OAuth client_secret (then token_path is used).
     credentials_path: str = ""
+    token_path: str = "~/.hermes/google_token.json"
     pull_decisions: bool = True
 
 

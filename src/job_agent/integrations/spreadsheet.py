@@ -374,6 +374,7 @@ class SheetConfig:
     backend: str = "csv"
     spreadsheet_id: str = ""
     credentials_path: str = ""
+    token_path: str = "~/.hermes/google_token.json"
 
     def __post_init__(self) -> None:
         self.directory = Path(self.directory)
@@ -386,6 +387,7 @@ class SheetConfig:
             backend=sheets.backend,
             spreadsheet_id=sheets.spreadsheet_id,
             credentials_path=sheets.credentials_path,
+            token_path=getattr(sheets, "token_path", "") or "~/.hermes/google_token.json",
         )
 
 
@@ -470,6 +472,44 @@ class CsvBackend(SheetBackend):
         return len(rows)
 
 
+def _google_credentials(config: SheetConfig, scopes: list[str]):
+    """Resolve Google credentials: service account JSON, or OAuth user token.
+
+    A service-account file works headless in CI; an installed-app OAuth file plus
+    a saved token (``~/.hermes/google_token.json``) lets the agent act as the
+    person, which is what a personal spreadsheet approval surface needs.
+    """
+    import json
+    from pathlib import Path
+
+    cred_path = Path(config.credentials_path).expanduser() if config.credentials_path else None
+    if cred_path and cred_path.exists():
+        payload = json.loads(cred_path.read_text())
+        if payload.get("type") == "service_account":
+            from google.oauth2.service_account import Credentials
+
+            return Credentials.from_service_account_file(str(cred_path), scopes=scopes)
+
+    token_path = Path(config.token_path or "~/.hermes/google_token.json").expanduser()
+    if not token_path.exists():
+        raise RuntimeError(
+            f"No Google credentials: {cred_path or '(none)'} is not a service "
+            f"account and no OAuth token at {token_path}."
+        )
+    data = json.loads(token_path.read_text())
+    from google.oauth2.credentials import Credentials
+
+    # Hermes stores the access token under "token" (not "access_token").
+    return Credentials(
+        token=data.get("token") or data.get("access_token"),
+        refresh_token=data.get("refresh_token"),
+        token_uri=data.get("token_uri") or "https://oauth2.googleapis.com/token",
+        client_id=data.get("client_id"),
+        client_secret=data.get("client_secret"),
+        scopes=data.get("scopes") or scopes,
+    )
+
+
 class GoogleSheetsBackend(SheetBackend):
     """Google Sheets backend. Requires optional ``gspread`` + ``google-auth``.
 
@@ -480,7 +520,6 @@ class GoogleSheetsBackend(SheetBackend):
     def __init__(self, config: SheetConfig):
         try:
             import gspread
-            from google.oauth2.service_account import Credentials
         except ImportError as exc:
             raise RuntimeError(
                 "Google Sheets backend requires: uv pip install gspread google-auth ..."
@@ -491,9 +530,7 @@ class GoogleSheetsBackend(SheetBackend):
             "https://www.googleapis.com/auth/spreadsheets",
             "https://www.googleapis.com/auth/drive",
         ]
-        creds = Credentials.from_service_account_file(
-            config.credentials_path, scopes=scopes
-        )
+        creds = _google_credentials(config, scopes)
         self._client = gspread.authorize(creds)
         self._spreadsheet = self._client.open_by_key(config.spreadsheet_id)
 

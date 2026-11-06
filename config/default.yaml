@@ -42,10 +42,12 @@ content:
 # Spreadsheet mirror + approval surface (see docs/SPREADSHEET.md).
 sheets:
   enabled: true
-  backend: "csv"                   # csv | google
-  directory: "~/.job-agent/sheets"
-  spreadsheet_id: ""
-  credentials_path: ""
+  backend: "google"                # csv | google
+  directory: "~/.job-agent/sheets"  # csv mirror (used when backend: csv)
+  spreadsheet_id: "1qzDe71Wl7RviTVUYalDGOVmvHy4yAxrWtE_wty8Dx68"
+  # Not a service account → falls back to the Hermes OAuth token below.
+  credentials_path: "~/.hermes/google_client_secret.json"
+  token_path: "~/.hermes/google_token.json"
   pull_decisions: true
 
 # Fast discovery from structured feeds (see docs/COVERAGE.md).
