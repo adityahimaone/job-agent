@@ -1,0 +1,126 @@
+"""Abstract base classes and shared utilities for platform drivers."""
+
+from __future__ import annotations
+
+from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Protocol
+
+from job_agent.browser.humanizer import human_delay
+from job_agent.db.models import Platform
+from job_agent.utils.logging import get_logger
+
+if TYPE_CHECKING:
+    from playwright.sync_api import Page
+
+log = get_logger(__name__)
+
+
+def safe_text(page: Page, selector: str) -> str:
+    """Safely extract text from the first element matching *selector*."""
+    try:
+        el = page.locator(selector).first
+        if el.count() > 0:
+            return el.inner_text().strip()
+    except Exception:
+        pass
+    return ""
+
+
+def safe_goto(page: Page, url: str, *, retries: int = 2) -> None:
+    """Navigate to *url* with retry on network failure."""
+    for attempt in range(1 + retries):
+        try:
+            page.goto(url, wait_until="domcontentloaded")
+            return
+        except Exception:
+            if attempt >= retries:
+                raise
+            log.warning("safe_goto_retry", url=url, attempt=attempt + 1)
+            human_delay(2000, 4000)
+
+
+@dataclass
+class JobPosting:
+    """Represents a discovered job posting."""
+
+    external_id: str
+    platform: Platform
+    title: str
+    company: str
+    location: str = ""
+    description: str = ""
+    url: str = ""
+    salary: str | None = None
+    easy_apply: bool = False
+    remote: bool = False
+    extra: dict = field(default_factory=dict)
+
+
+class PlatformDriver(ABC):
+    """Abstract base class for job platform drivers."""
+
+    platform: Platform
+
+    @abstractmethod
+    def login(self, username: str, password: str) -> None:
+        """Authenticate with the platform."""
+
+    @abstractmethod
+    def search_jobs(
+        self,
+        query: str,
+        location: str = "",
+        remote: bool = False,
+        experience_level: str = "",
+        limit: int = 25,
+    ) -> list[JobPosting]:
+        """Search for jobs and return postings."""
+
+    @abstractmethod
+    def get_job_details(self, job_url: str) -> JobPosting:
+        """Get full details for a specific job."""
+
+    @abstractmethod
+    def apply(
+        self,
+        job: JobPosting,
+        resume_path: str,
+        cover_letter_path: str = "",
+        answers: dict[str, str] | None = None,
+    ) -> bool:
+        """Apply to a job. Returns True if successful."""
+
+    @abstractmethod
+    def is_already_applied(self, job: JobPosting) -> bool:
+        """Check if already applied to this job."""
+
+    def is_job_open(self, job: JobPosting) -> bool:
+        """Navigate to the job page and check if it's still accepting applications.
+
+        Returns True if the job appears open (default). Subclasses override to
+        perform platform-specific checks.
+        """
+        return True
+
+    @abstractmethod
+    def close(self) -> None:
+        """Clean up resources."""
+
+
+class OutreachCapable(Protocol):
+    """Mixin for platforms that support recruiter outreach."""
+
+    def send_connection_request(self, profile_url: str, note: str = "") -> bool:
+        """Send a connection request with an optional note."""
+        ...
+
+    def send_inmail(self, profile_url: str, subject: str, message: str) -> bool:
+        """Send an InMail message."""
+        ...
+
+    def search_people(
+        self, company: str, title: str = "", limit: int = 10
+    ) -> list[dict]:
+        """Search for people (recruiters/hiring managers)."""
+        ...

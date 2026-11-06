@@ -1,0 +1,285 @@
+{% extends "base.html" %}
+{% block title %}Settings - Job Agent{% endblock %}
+
+{% block content %}
+<div class="page-header animate-in delay-1">
+    <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <a href="/" class="btn btn-ghost btn-sm" title="Back to Overview"><i class="bi bi-arrow-left"></i></a>
+        <h2>
+            <span class="page-icon"><i class="bi bi-gear-fill"></i></span>
+            Settings
+        </h2>
+    </div>
+</div>
+
+<!-- Generate Profile from CV -->
+<div class="card animate-in delay-2" style="margin-bottom: 1.5rem;">
+    <div class="card-header">
+        <h5><i class="bi bi-file-earmark-person" style="margin-right: 0.5rem;"></i>Generate Profile from CV</h5>
+    </div>
+    <div class="card-body">
+        <p class="text-sm text-muted" style="margin-bottom: 1rem;">
+            Upload your CV or resume and AI will automatically create a job search profile with your skills, experience level, and preferred roles.
+        </p>
+        <form method="post" action="/settings/generate-profile" enctype="multipart/form-data">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem;">
+                <div>
+                    <label class="form-label">CV / Resume File</label>
+                    <input type="file" name="cv_file" class="form-control" accept=".pdf,.docx" required>
+                    <div class="text-sm text-muted" style="margin-top: 0.25rem;">PDF or DOCX format</div>
+                </div>
+                <div>
+                    <label class="form-label">Profile Name</label>
+                    <input type="text" name="profile_name" class="form-control" placeholder="e.g. senior-python" value="">
+                    <div class="text-sm text-muted" style="margin-top: 0.25rem;">Saved to config/profiles/&lt;name&gt;.yaml</div>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">
+                <i class="bi bi-magic"></i> Generate Profile
+            </button>
+        </form>
+
+        {% if profiles %}
+        <hr class="divider">
+        <div class="form-label mb-2">Existing Profiles</div>
+        <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+            {% for p in profiles %}
+            <span class="badge badge-blue">{{ p }}</span>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="settings-grid">
+    <!-- AI Provider -->
+    <div class="card animate-in delay-2">
+        <div class="card-header">
+            <h5>AI Provider</h5>
+        </div>
+        <div class="card-body">
+            <form method="post" action="/settings/ai-provider">
+                <div style="margin-bottom: 1rem;">
+                    <label class="form-label">Active Provider</label>
+                    <select name="ai_provider" class="form-select" id="ai-provider-select">
+                        {% for p in ai_config.providers %}
+                        <option value="{{ p }}" {% if ai_config.provider == p %}selected{% endif %}>
+                            {{ p | capitalize }}{% if p == 'ollama' %} (Local){% endif %}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="ai-key-group" data-provider="gemini">
+                    <label class="form-label">Gemini API Key
+                        <a href="https://aistudio.google.com/apikey" target="_blank" class="text-sm" style="margin-left: 0.5rem;">Get free key</a>
+                    </label>
+                    <input type="password" name="gemini_api_key" class="form-control"
+                           placeholder="{{ ai_config.gemini_key or 'Not set' }}">
+                </div>
+
+                <div class="ai-key-group" data-provider="groq">
+                    <label class="form-label">Groq API Key
+                        <a href="https://console.groq.com" target="_blank" class="text-sm" style="margin-left: 0.5rem;">Get free key</a>
+                    </label>
+                    <input type="password" name="groq_api_key" class="form-control"
+                           placeholder="{{ ai_config.groq_key or 'Not set' }}">
+                </div>
+
+                <div class="ai-key-group" data-provider="openrouter">
+                    <label class="form-label">OpenRouter API Key
+                        <a href="https://openrouter.ai/keys" target="_blank" class="text-sm" style="margin-left: 0.5rem;">Get key</a>
+                    </label>
+                    <input type="password" name="openrouter_api_key" class="form-control"
+                           placeholder="{{ ai_config.openrouter_key or 'Not set' }}">
+                </div>
+
+                <div class="ai-key-group" data-provider="anthropic">
+                    <label class="form-label">Anthropic API Key
+                        <a href="https://console.anthropic.com" target="_blank" class="text-sm" style="margin-left: 0.5rem;">Get key (paid)</a>
+                    </label>
+                    <input type="password" name="anthropic_api_key" class="form-control"
+                           placeholder="{{ ai_config.anthropic_key or 'Not set' }}">
+                </div>
+
+                <div class="ai-key-group" data-provider="ollama" style="margin-bottom: 1rem;">
+                    <div class="text-sm text-muted">
+                        Ollama runs locally &mdash; no API key needed.
+                        <a href="https://ollama.com" target="_blank">Install Ollama</a>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-sm">
+                    <i class="bi bi-cpu"></i> Save AI Settings
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Credentials -->
+    <div class="card animate-in delay-3">
+        <div class="card-header">
+            <h5>Platform Credentials</h5>
+        </div>
+        <div class="card-body">
+            {% for plat in credentials %}
+            <div class="credential-item" style="display: flex; align-items: center; gap: 0.5rem;">
+                <div style="flex: 1;">
+                    <div style="font-weight: 600; color: var(--text-primary); text-transform: capitalize;">{{ plat.platform }}</div>
+                    {% if plat.configured %}
+                    <div class="text-sm text-muted">{{ plat.username }}{% if plat.updated_at %} &middot; updated {{ plat.updated_at.strftime('%b %d') }}{% endif %}</div>
+                    {% endif %}
+                </div>
+                {% if plat.configured %}
+                <span class="badge badge-green">Active</span>
+                <button class="btn btn-ghost btn-sm"
+                        hx-post="/actions/test-login"
+                        hx-vals='{"platform": "{{ plat.platform }}"}'
+                        hx-target="#login-status-{{ plat.platform }}"
+                        hx-swap="innerHTML">
+                    <i class="bi bi-plug"></i> Test
+                </button>
+                <form method="post" action="/settings/credentials/delete" style="margin: 0;">
+                    <input type="hidden" name="platform" value="{{ plat.platform }}">
+                    <button type="submit" class="btn btn-ghost btn-sm" style="color: var(--danger);"
+                            onclick="return confirm('Delete {{ plat.platform }} credentials?')">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </form>
+                {% else %}
+                <span class="badge badge-neutral">Not Set</span>
+                {% endif %}
+                <span id="login-status-{{ plat.platform }}"></span>
+            </div>
+            {% endfor %}
+
+            <hr class="divider">
+
+            <div class="form-label mb-2">Add / Update Credentials</div>
+            <form method="post" action="/settings/credentials">
+                <div style="display: grid; gap: 0.5rem;">
+                    <select name="platform" class="form-select" required>
+                        <option value="linkedin">LinkedIn</option>
+                        <option value="indeed">Indeed</option>
+                        <option value="glassdoor">Glassdoor</option>
+                        <option value="ziprecruiter">ZipRecruiter</option>
+                        <option value="dice">Dice</option>
+                        <option value="wellfound">Wellfound</option>
+                    </select>
+                    <input type="text" name="username" class="form-control" placeholder="Username or email" required>
+                    <input type="password" name="password" class="form-control" placeholder="Password" required>
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        <i class="bi bi-lock"></i> Save Encrypted
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Thresholds -->
+<div class="card animate-in delay-4">
+    <div class="card-header">
+        <h5>Matching Thresholds</h5>
+    </div>
+    <div class="card-body">
+        <form method="post" action="/settings/thresholds">
+            <div style="margin-bottom: 1rem;">
+                <label class="form-label">Auto-Apply Threshold</label>
+                <input type="number" name="auto_apply_threshold" class="form-control"
+                       value="{{ thresholds.auto_apply }}" min="0" max="1" step="0.05">
+                <div class="text-sm text-muted" style="margin-top: 0.25rem;">Jobs scoring above this are applied to automatically.</div>
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <label class="form-label">Review Queue Threshold</label>
+                <input type="number" name="review_threshold" class="form-control"
+                       value="{{ thresholds.review }}" min="0" max="1" step="0.05">
+                <div class="text-sm text-muted" style="margin-top: 0.25rem;">Jobs scoring above this go to the review queue.</div>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">
+                <i class="bi bi-check"></i> Save Thresholds
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Email / SMTP -->
+<div class="card animate-in delay-5">
+    <div class="card-header">
+        <h5>Email / SMTP</h5>
+    </div>
+    <div class="card-body">
+        <form method="post" action="/settings/email">
+            <div style="margin-bottom: 1rem;">
+                <label class="form-label">Gmail Address</label>
+                <input type="email" name="smtp_user" class="form-control"
+                       placeholder="{{ email_config.smtp_user_masked or 'your-email@gmail.com' }}">
+                {% if email_config.smtp_user %}
+                <div class="text-sm text-muted" style="margin-top: 0.25rem;">Currently: {{ email_config.smtp_user_masked }}</div>
+                {% endif %}
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <label class="form-label">App Password</label>
+                <input type="password" name="smtp_password" class="form-control"
+                       placeholder="{{ '••••••••' if email_config.smtp_password_set else 'Not set' }}">
+                <div class="text-sm text-muted" style="margin-top: 0.25rem;">
+                    Use a Gmail App Password (Google Account &gt; Security &gt; 2-Step Verification &gt; App Passwords)
+                </div>
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <label class="form-label">Notification Email</label>
+                <input type="email" name="notification_email" class="form-control"
+                       placeholder="{{ email_config.notification_email or 'notifications@example.com' }}">
+                {% if email_config.notification_email %}
+                <div class="text-sm text-muted" style="margin-top: 0.25rem;">Currently: {{ email_config.notification_email }}</div>
+                {% endif %}
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">
+                <i class="bi bi-envelope"></i> Save Email Settings
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Agent Config -->
+<div class="card animate-in delay-6">
+    <div class="card-header">
+        <h5>Agent Configuration</h5>
+    </div>
+    <div class="card-body">
+        <div class="config-row">
+            <div class="config-item">
+                <span class="config-label">Schedule Interval</span>
+                <span class="config-value">{{ settings.agent.schedule_interval }} min</span>
+            </div>
+            <div class="config-item">
+                <span class="config-label">Activity Window</span>
+                <span class="config-value">{{ settings.agent.activity_start_hour }}:00 &ndash; {{ settings.agent.activity_end_hour }}:00</span>
+            </div>
+            <div class="config-item">
+                <span class="config-label">Dry Run</span>
+                {% if settings.agent.dry_run %}
+                <span class="badge badge-amber">Enabled</span>
+                {% else %}
+                <span class="badge badge-green">Disabled</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    var select = document.getElementById('ai-provider-select');
+    function updateKeyGroups() {
+        var provider = select.value;
+        document.querySelectorAll('.ai-key-group').forEach(function(el) {
+            el.style.display = el.dataset.provider === provider ? 'block' : 'none';
+            el.style.marginBottom = el.dataset.provider === provider ? '1rem' : '0';
+        });
+    }
+    select.addEventListener('change', updateKeyGroups);
+    updateKeyGroups();
+})();
+</script>
+{% endblock %}

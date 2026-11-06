@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+wheels/
+
+# Virtual environments
+.venv/
+venv/
+
+# Environment
+.env
+
+# IDE
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project-specific
+*.db
+browser_state/
+config/profiles/*.yaml
+!config/profiles/example.yaml
+config/resumes/
+
+# Scripts - personal/debug
+scripts/*_debug*.py
+scripts/test_*.py
+
+# Demo video (source kept locally, output in GitHub release)
+demo-video/
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+Downloads/
+.gitignore
+CLAUDE.local.md

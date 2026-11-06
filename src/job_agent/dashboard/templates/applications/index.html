@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}Applications - Job Agent{% endblock %}
+
+{% block content %}
+<div class="page-header animate-in delay-1">
+    <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <a href="/" class="btn btn-ghost btn-sm" title="Back to Overview"><i class="bi bi-arrow-left"></i></a>
+        <h2>
+            <span class="page-icon"><i class="bi bi-send-fill"></i></span>
+            Applications
+        </h2>
+    </div>
+    <a href="/applications/export" class="btn btn-ghost btn-sm">
+        <i class="bi bi-download"></i> Export CSV
+    </a>
+</div>
+
+<div class="card animate-in delay-2">
+    <div class="card-body" style="padding: 0;">
+        {% if applications %}
+        <div style="overflow-x: auto;">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Job Title</th>
+                        <th>Company</th>
+                        <th>Platform</th>
+                        <th>Status</th>
+                        <th>Applied</th>
+                        <th>Documents</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for app in applications %}
+                    <tr id="app-row-{{ app.id }}">
+                        {% if app.job %}
+                        <td><a href="/jobs/{{ app.job.id }}" style="font-weight: 600;">{{ app.job.title }}</a></td>
+                        <td>{{ app.job.company }}</td>
+                        <td><span class="badge badge-neutral">{{ app.job.platform.value }}</span></td>
+                        {% else %}
+                        <td class="text-muted">(job deleted)</td>
+                        <td class="text-muted">--</td>
+                        <td class="text-muted">--</td>
+                        {% endif %}
+                        <td>
+                            {% set status_map = {
+                                'pending': 'badge-amber',
+                                'submitted': 'badge-blue',
+                                'confirmed': 'badge-green',
+                                'failed': 'badge-red',
+                                'withdrawn': 'badge-neutral'
+                            } %}
+                            <span class="badge {{ status_map.get(app.status.value, 'badge-neutral') }}">{{ app.status.value }}</span>
+                        </td>
+                        <td class="mono" style="font-size: 0.78rem;">{{ app.applied_at.strftime('%m/%d %H:%M') if app.applied_at else app.created_at.strftime('%m/%d %H:%M') }}</td>
+                        <td>
+                            <div style="display: flex; gap: 0.25rem;">
+                                {% if app.resume_path %}
+                                <a href="/applications/{{ app.id }}/download-resume" class="btn btn-ghost btn-sm" title="Download Resume" target="_blank">
+                                    <i class="bi bi-file-earmark-pdf"></i> Resume
+                                </a>
+                                {% endif %}
+                                {% if app.cover_letter_path %}
+                                <a href="/applications/{{ app.id }}/download-cover-letter" class="btn btn-ghost btn-sm" title="Download Cover Letter" target="_blank">
+                                    <i class="bi bi-file-earmark-text"></i> Cover
+                                </a>
+                                {% endif %}
+                                {% if not app.resume_path and not app.cover_letter_path %}
+                                <span class="text-muted" style="font-size: 0.72rem;">--</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            {% if app.status.value in ('failed', 'withdrawn') %}
+                            <button class="btn btn-ghost btn-sm"
+                                    hx-post="/applications/retry/{{ app.id }}"
+                                    hx-target="#retry-result-{{ app.id }}"
+                                    hx-swap="innerHTML"
+                                    title="Retry this application">
+                                <i class="bi bi-arrow-clockwise"></i> Retry
+                            </button>
+                            <div id="retry-result-{{ app.id }}"></div>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-icon"><i class="bi bi-send"></i></div>
+            <p>No applications submitted yet. The agent will auto-apply to high-scoring matches.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% block title %}Jobs - Job Agent{% endblock %}
+
+{% block content %}
+<div class="page-header animate-in delay-1">
+    <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <a href="/" class="btn btn-ghost btn-sm" title="Back to Overview"><i class="bi bi-arrow-left"></i></a>
+        <h2>
+            <span class="page-icon"><i class="bi bi-briefcase-fill"></i></span>
+            Jobs
+        </h2>
+    </div>
+    <span class="text-sm text-muted mono">{{ jobs|length }} results</span>
+</div>
+
+<!-- Filters -->
+<form method="get" class="filter-bar animate-in delay-2">
+    <div class="filter-group">
+        <label class="form-label">Platform</label>
+        <select name="platform" class="form-select">
+            <option value="">All Platforms</option>
+            <option value="linkedin" {{ 'selected' if request.args.get('platform') == 'linkedin' }}>LinkedIn</option>
+            <option value="indeed" {{ 'selected' if request.args.get('platform') == 'indeed' }}>Indeed</option>
+            <option value="glassdoor" {{ 'selected' if request.args.get('platform') == 'glassdoor' }}>Glassdoor</option>
+        </select>
+    </div>
+    <div class="filter-group">
+        <label class="form-label">Status</label>
+        <select name="status" class="form-select">
+            <option value="">All Statuses</option>
+            <option value="discovered" {{ 'selected' if request.args.get('status') == 'discovered' }}>Discovered</option>
+            <option value="matched" {{ 'selected' if request.args.get('status') == 'matched' }}>Matched</option>
+            <option value="queued" {{ 'selected' if request.args.get('status') == 'queued' }}>Queued</option>
+            <option value="applied" {{ 'selected' if request.args.get('status') == 'applied' }}>Applied</option>
+            <option value="skipped" {{ 'selected' if request.args.get('status') == 'skipped' }}>Skipped</option>
+        </select>
+    </div>
+    <div class="filter-group">
+        <label class="form-label">Bookmarked</label>
+        <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer;">
+            <input type="checkbox" name="bookmarked" value="1" {{ 'checked' if request.args.get('bookmarked') == '1' }}>
+            <span class="text-sm"><i class="bi bi-bookmark-fill"></i> Only</span>
+        </label>
+    </div>
+    <div class="filter-group">
+        <label class="form-label">&nbsp;</label>
+        <button type="submit" class="btn btn-primary btn-sm">
+            <i class="bi bi-funnel"></i> Filter
+        </button>
+    </div>
+</form>
+
+<!-- Jobs Table -->
+<div class="card animate-in delay-3">
+    <div class="card-body" style="padding: 0;">
+        {% if jobs %}
+        <div style="overflow-x: auto;">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th style="width: 2rem;"></th>
+                        <th>Title</th>
+                        <th>Company</th>
+                        <th>Platform</th>
+                        <th>Score</th>
+                        <th>Insights</th>
+                        <th>Status</th>
+                        <th>Discovered</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for job in jobs %}
+                    <tr class="row-link" onclick="window.location='/jobs/{{ job.id }}'">
+                        <td onclick="event.stopPropagation()">
+                            {% set bk_icon = "bi-bookmark-fill" if job.bookmarked else "bi-bookmark" %}
+                            {% set bk_cls = "btn-warning" if job.bookmarked else "btn-ghost" %}
+                            <button class="btn {{ bk_cls }} btn-sm"
+                                    hx-post="/jobs/{{ job.id }}/bookmark"
+                                    hx-swap="outerHTML"
+                                    title="Toggle bookmark">
+                                <i class="bi {{ bk_icon }}"></i>
+                            </button>
+                        </td>
+                        <td style="color: var(--text-primary); font-weight: 600;">{{ job.title }}</td>
+                        <td>{{ job.company }}</td>
+                        <td>
+                            <span class="badge badge-neutral">{{ job.platform.value }}</span>
+                            {% if job.duplicate_of_id %}
+                            <span class="badge badge-amber" title="Duplicate of job #{{ job.duplicate_of_id }}">Dup</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if job.match_result %}
+                                {% set score = job.match_result.score %}
+                                {% if score >= 0.9 %}
+                                <span class="badge badge-green score-badge">{{ "%.2f"|format(score) }}</span>
+                                {% elif score >= 0.7 %}
+                                <span class="badge badge-amber score-badge">{{ "%.2f"|format(score) }}</span>
+                                {% else %}
+                                <span class="badge badge-red score-badge">{{ "%.2f"|format(score) }}</span>
+                                {% endif %}
+                            {% else %}
+                            <span class="text-muted mono" style="font-size: 0.78rem;">--</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if job.match_result %}
+                            <div class="d-flex gap-1 flex-wrap" style="max-width: 280px;">
+                                {% set matched = job.match_result.matched_skills|default('')|string %}
+                                {% set missing = job.match_result.missing_skills|default('')|string %}
+                                {% set flags = job.match_result.red_flags|default('')|string %}
+                                {% if matched and matched != '[]' and matched != '' %}
+                                    {% for skill in matched|from_json|default([])|list %}
+                                        {% if loop.index <= 3 %}
+                                        <span class="badge badge-green" style="font-size: 0.7rem;">{{ skill }}</span>
+                                        {% endif %}
+                                    {% endfor %}
+                                {% endif %}
+                                {% if missing and missing != '[]' and missing != '' %}
+                                    {% for skill in missing|from_json|default([])|list %}
+                                        {% if loop.index <= 2 %}
+                                        <span class="badge badge-amber" style="font-size: 0.7rem;" title="Missing">{{ skill }}</span>
+                                        {% endif %}
+                                    {% endfor %}
+                                {% endif %}
+                                {% if flags and flags != '[]' and flags != '' %}
+                                    {% for flag in flags|from_json|default([])|list %}
+                                        {% if loop.index <= 2 %}
+                                        <span class="badge badge-red" style="font-size: 0.7rem;">{{ flag }}</span>
+                                        {% endif %}
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+                            {% if job.match_result.reasoning %}
+                            <div class="text-sm text-muted" style="max-width: 280px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.72rem;"
+                                 title="{{ job.match_result.reasoning }}">
+                                {{ job.match_result.reasoning }}
+                            </div>
+                            {% endif %}
+                            {% else %}
+                            <span class="text-muted mono" style="font-size: 0.72rem;">--</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% set status_map = {
+                                'discovered': 'badge-neutral',
+                                'matched': 'badge-blue',
+                                'queued': 'badge-amber',
+                                'applied': 'badge-green',
+                                'auto_approved': 'badge-green',
+                                'skipped': 'badge-neutral',
+                                'rejected': 'badge-red',
+                                'apply_failed': 'badge-red'
+                            } %}
+                            <span class="badge {{ status_map.get(job.status.value, 'badge-neutral') }}">{{ job.status.value }}</span>
+                        </td>
+                        <td class="mono" style="font-size: 0.78rem;">{{ job.discovered_at.strftime('%m/%d %H:%M') if job.discovered_at else '-' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-icon"><i class="bi bi-briefcase"></i></div>
+            <p>No jobs found. Run a search to discover opportunities.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

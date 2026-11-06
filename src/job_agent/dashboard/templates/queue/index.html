@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+{% block title %}Review Queue - Job Agent{% endblock %}
+
+{% block content %}
+<div class="page-header animate-in delay-1">
+    <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <a href="/" class="btn btn-ghost btn-sm" title="Back to Overview"><i class="bi bi-arrow-left"></i></a>
+        <h2>
+            <span class="page-icon"><i class="bi bi-inbox-fill"></i></span>
+            Review Queue
+        </h2>
+    </div>
+    <div style="display: flex; align-items: center; gap: 0.5rem;">
+        <span class="text-sm text-muted mono">{{ queue|length }} awaiting review</span>
+        {% if queue %}
+        <button class="btn btn-success btn-sm" id="bulk-approve-btn" style="display:none;"
+                onclick="bulkAction('approve')" title="Approve selected">
+            <i class="bi bi-check-all"></i> Approve Selected (<span id="selected-count">0</span>)
+        </button>
+        <button class="btn btn-danger btn-sm" id="bulk-reject-btn" style="display:none;"
+                onclick="bulkAction('reject')" title="Reject selected">
+            <i class="bi bi-x-circle"></i> Reject Selected
+        </button>
+        <button class="btn btn-success btn-sm"
+                hx-post="/queue/approve-all"
+                hx-target="#action-status"
+                hx-swap="innerHTML"
+                hx-confirm="Approve all {{ queue|length }} queued jobs?">
+            <i class="bi bi-check-all"></i> Approve All
+        </button>
+        <button class="btn btn-primary btn-sm"
+                hx-post="/actions/apply-approved"
+                hx-target="#action-status"
+                hx-swap="outerHTML">
+            <i class="bi bi-play-fill"></i> Apply Approved
+        </button>
+        {% endif %}
+    </div>
+</div>
+
+<div id="action-status" class="animate-in delay-1"></div>
+
+{% if queue %}
+<div class="card animate-in delay-2" style="overflow-x: auto;">
+    <table class="data-table sortable-table" id="queue-table">
+        <thead>
+            <tr>
+                <th style="width: 2rem;"><input type="checkbox" id="select-all" onchange="toggleAll(this)"></th>
+                <th data-sort="string" class="sortable">Title <i class="bi bi-chevron-expand sort-icon"></i></th>
+                <th data-sort="string" class="sortable">Company <i class="bi bi-chevron-expand sort-icon"></i></th>
+                <th data-sort="string" class="sortable">Location <i class="bi bi-chevron-expand sort-icon"></i></th>
+                <th data-sort="number" class="sortable">Score <i class="bi bi-chevron-expand sort-icon"></i></th>
+                <th data-sort="string" class="sortable">Platform <i class="bi bi-chevron-expand sort-icon"></i></th>
+                <th>Tags</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in queue %}
+            <tr id="queue-item-{{ item.job.id }}">
+                <td><input type="checkbox" class="queue-checkbox" value="{{ item.job.id }}" onchange="updateBulkButtons()"></td>
+                <td>
+                    <a href="{{ item.job.url }}" target="_blank" style="font-weight: 600; color: var(--text-primary);">
+                        {{ item.job.title }}
+                    </a>
+                    {% if item.job.match_result and item.job.match_result.reasoning %}
+                    <div class="text-sm text-muted" style="max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"
+                         title="{{ item.job.match_result.reasoning }}">
+                        {{ item.job.match_result.reasoning }}
+                    </div>
+                    {% endif %}
+                </td>
+                <td>{{ item.job.company }}</td>
+                <td>{{ item.job.location }}</td>
+                <td data-value="{{ item.job.match_result.score if item.job.match_result else 0 }}">
+                    {% if item.job.match_result %}
+                    <span class="badge badge-amber score-badge">{{ "%.2f"|format(item.job.match_result.score) }}</span>
+                    {% else %}
+                    <span class="badge badge-neutral">N/A</span>
+                    {% endif %}
+                </td>
+                <td>{{ item.job.platform.value }}</td>
+                <td>
+                    <div class="d-flex gap-1 flex-wrap">
+                        {% if item.job.easy_apply %}<span class="badge badge-blue">Easy Apply</span>{% endif %}
+                        {% if item.job.remote %}<span class="badge badge-purple">Remote</span>{% endif %}
+                        {% for skill in item.matched_skills[:3] %}
+                        <span class="badge badge-green">{{ skill }}</span>
+                        {% endfor %}
+                        {% for flag in item.red_flags[:2] %}
+                        <span class="badge badge-red">{{ flag }}</span>
+                        {% endfor %}
+                    </div>
+                </td>
+                <td>
+                    <div style="display: flex; gap: 0.25rem;">
+                        <button class="btn btn-success btn-sm"
+                                hx-post="/queue/approve/{{ item.job.id }}"
+                                hx-target="#queue-item-{{ item.job.id }}"
+                                hx-swap="outerHTML"
+                                title="Approve">
+                            <i class="bi bi-check-circle"></i>
+                        </button>
+                        <button class="btn btn-danger btn-sm"
+                                hx-post="/queue/reject/{{ item.job.id }}"
+                                hx-target="#queue-item-{{ item.job.id }}"
+                                hx-swap="outerHTML"
+                                title="Reject">
+                            <i class="bi bi-x-circle"></i>
+                        </button>
+                        <a href="/jobs/{{ item.job.id }}" class="btn btn-ghost btn-sm" title="Details">
+                            <i class="bi bi-eye"></i>
+                        </a>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+(function() {
+    var table = document.getElementById('queue-table');
+    var headers = table.querySelectorAll('th.sortable');
+    var currentSort = { col: -1, asc: true };
+
+    headers.forEach(function(header, index) {
+        // +1 offset for checkbox column
+        var colIndex = index + 1;
+        header.style.cursor = 'pointer';
+        header.style.userSelect = 'none';
+        header.addEventListener('click', function() {
+            var sortType = header.getAttribute('data-sort');
+            var asc = currentSort.col === colIndex ? !currentSort.asc : true;
+            currentSort = { col: colIndex, asc: asc };
+
+            headers.forEach(function(h) {
+                h.querySelector('.sort-icon').className = 'bi bi-chevron-expand sort-icon';
+            });
+            header.querySelector('.sort-icon').className =
+                'bi bi-chevron-' + (asc ? 'up' : 'down') + ' sort-icon';
+
+            var tbody = table.querySelector('tbody');
+            var rows = Array.from(tbody.querySelectorAll('tr'));
+
+            rows.sort(function(a, b) {
+                var cellA = a.children[colIndex];
+                var cellB = b.children[colIndex];
+                var valA, valB;
+
+                if (sortType === 'number') {
+                    valA = parseFloat(cellA.getAttribute('data-value') || cellA.textContent) || 0;
+                    valB = parseFloat(cellB.getAttribute('data-value') || cellB.textContent) || 0;
+                } else {
+                    valA = cellA.textContent.trim().toLowerCase();
+                    valB = cellB.textContent.trim().toLowerCase();
+                }
+
+                if (valA < valB) return asc ? -1 : 1;
+                if (valA > valB) return asc ? 1 : -1;
+                return 0;
+            });
+
+            rows.forEach(function(row) { tbody.appendChild(row); });
+        });
+    });
+})();
+
+function toggleAll(source) {
+    var checkboxes = document.querySelectorAll('.queue-checkbox');
+    checkboxes.forEach(function(cb) { cb.checked = source.checked; });
+    updateBulkButtons();
+}
+
+function updateBulkButtons() {
+    var checked = document.querySelectorAll('.queue-checkbox:checked');
+    var count = checked.length;
+    document.getElementById('bulk-approve-btn').style.display = count > 0 ? '' : 'none';
+    document.getElementById('bulk-reject-btn').style.display = count > 0 ? '' : 'none';
+    document.getElementById('selected-count').textContent = count;
+}
+
+function bulkAction(action) {
+    var checked = document.querySelectorAll('.queue-checkbox:checked');
+    var ids = Array.from(checked).map(function(cb) { return cb.value; });
+    if (ids.length === 0) return;
+
+    var label = action === 'approve' ? 'Approve' : 'Reject';
+    if (!confirm(label + ' ' + ids.length + ' selected job(s)?')) return;
+
+    fetch('/queue/bulk-action', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({action: action, job_ids: ids.map(Number)})
+    })
+    .then(function(resp) { return resp.json(); })
+    .then(function(data) {
+        var statusDiv = document.getElementById('action-status');
+        var alert = document.createElement('div');
+        alert.className = 'alert ' + (data.ok ? 'alert-success' : 'alert-danger');
+        alert.textContent = data.message;
+        statusDiv.replaceChildren(alert);
+        // Remove processed rows
+        if (data.ok) {
+            ids.forEach(function(id) {
+                var row = document.getElementById('queue-item-' + id);
+                if (row) row.remove();
+            });
+        }
+        updateBulkButtons();
+        document.getElementById('select-all').checked = false;
+    });
+}
+</script>
+{% else %}
+<div class="empty-state animate-in delay-2">
+    <div class="empty-icon"><i class="bi bi-inbox"></i></div>
+    <p>No jobs in the review queue. Jobs scoring between the review and auto-apply thresholds will appear here.</p>
+</div>
+{% endif %}
+{% endblock %}
