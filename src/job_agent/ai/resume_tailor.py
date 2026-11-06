@@ -19,6 +19,9 @@ class ResumeTailor:
     def __init__(self, ai_client: AIClient, settings: Settings):
         self.ai = ai_client
         self.settings = settings
+        # Parsing the master resume is expensive (PDF extraction + hyperlinks).
+        # Cache it for the lifetime of this run instead of per application.
+        self._master_cache: tuple[str, str] | None = None
 
     def tailor(
         self,
@@ -112,7 +115,7 @@ class ResumeTailor:
         <html>
         <head>
             <style>
-                @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:wght@400;600&display=swap');
+                /* Fonts are system-local: no network fetch during PDF render. */
 
                 @page {{
                     size: letter;
@@ -241,6 +244,15 @@ class ResumeTailor:
 
         return self.generate_pdf(tailored_md, pdf_path)
 
+    def markdown_to_pdf(self, markdown_content: str, output_path: str) -> str:
+        """Public helper: render already-generated Markdown to a PDF file.
+
+        Grounded document generation produces Markdown directly, so it does not
+        need an extra LLM tailoring call.
+        """
+        Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+        return self.generate_pdf(markdown_content, output_path)
+
     def _load_master_resume(self) -> str:
         """Load the master resume from config (supports .md and .pdf)."""
         resume_path = Path(self.settings.resume.master_resume)
@@ -248,6 +260,15 @@ class ResumeTailor:
             raise FileNotFoundError(
                 f"Master resume not found: {resume_path}. Create it at {resume_path}"
             )
+        stat = resume_path.stat()
+        cache_key = f"{resume_path}:{stat.st_size}:{int(stat.st_mtime)}"
+        if self._master_cache and self._master_cache[0] == cache_key:
+            return self._master_cache[1]
+        text = self._read_master_resume(resume_path)
+        self._master_cache = (cache_key, text)
+        return text
+
+    def _read_master_resume(self, resume_path: Path) -> str:
         if resume_path.suffix.lower() == ".pdf":
             import pymupdf
 

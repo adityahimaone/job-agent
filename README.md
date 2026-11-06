@@ -2,6 +2,15 @@
 
 Autonomous job application agent that automates the entire job search lifecycle: discovering jobs on LinkedIn/Indeed/Glassdoor, scoring them against configurable profiles using AI, tailoring CVs for ATS optimization, auto-applying to high-confidence matches, queuing medium matches for review, and conducting LinkedIn recruiter outreach.
 
+> **Current build (2026-11-06).** A full audit and implementation pass is in
+> [`docs/AUDIT-2026-11-06.md`](docs/AUDIT-2026-11-06.md). Highlights: dry-run is
+> safe by default, **every submission needs a human approval**, applications are
+> verified before being recorded, documents are generated from editable Markdown
+> templates grounded in verified facts, a spreadsheet is the approval surface,
+> structured feeds + Ego Lite are the fast/human-supervised discovery lanes, and
+> part-time/remote + AI-training gigs are first-class. Start with
+> [`docs/README.md`](docs/README.md) for the docs index and quick start.
+
 ## Demo
 
 https://github.com/billmal071/job-agent/releases/download/v0.1.0/demo.mp4
@@ -16,7 +25,13 @@ https://github.com/billmal071/job-agent/releases/download/v0.1.0/demo.mp4
 - **Cover Letters** — AI-generated, customizable tone (professional, casual, formal)
 - **Screening Question Answering** — AI fills out application screening questions (multiple choice, free text, dropdowns)
 - **CV-to-Profile Generator** — Upload your resume and AI creates your search profile automatically
-- **Tiered Autonomy** — Auto-apply (≥0.80), queue for review (0.70–0.79), skip (<0.70) — all thresholds configurable
+- **Approval-Gated Autonomy** — high scores (≥0.90) are queued for approval; medium (0.70–0.89) queued; low (<0.70) skipped. Nothing is submitted unattended.
+- **Grounded Documents** — resume, cover letter, email subject/body and connection note rendered from editable Markdown templates + verified candidate facts, with a no-fabrication check
+- **Spreadsheet Approval Surface** — local CSV (works out of the box) or Google Sheets; edit a `decision` column to approve/reject, then `job-agent sheet pull`
+- **Fast Feed Lane** — Remotive, RemoteOK, Arbeitnow, Greenhouse/Lever/Ashby boards and LinkedIn guest search fetched concurrently
+- **Part-time / Remote Filters** — employment type, hours/week, timezone alignment, hourly rate and keyword filters applied to every posting
+- **SEA + AI-Training Coverage** — JobStreet, Glints, Kalibrr, Seek board specs via Ego Lite; Alignerr-style gig lane with hourly rates and assessment tracking
+- **Ego Lite Apply** — resume upload, human handoff for login/2FA/CAPTCHA/final submit, and confirmation-based verification
 - **Web Dashboard** — Flask + HTMX + Bootstrap 5 with overview, jobs, review queue, applications, outreach, analytics, settings
 - **Cold Email Outreach** — AI-generated personalized cold emails and LinkedIn connection requests to recruiters
 - **Easy Apply Detection** — Identifies and prioritizes one-click apply jobs on LinkedIn, Indeed, and Glassdoor
@@ -71,41 +86,55 @@ cp .env.example .env
 
 ### Create Your Profile
 
-**Option A: Generate from your CV (recommended)**
-
-1. Go to `http://127.0.0.1:5000/settings`
-2. Upload your resume (PDF or DOCX) in the "Generate Profile from CV" section
-3. AI extracts your skills, experience level, and target roles automatically
-4. Your resume is also saved as the master template for tailoring
-
-**Option B: Create manually**
+The build ships with a real profile for this workspace
+(`config/profiles/aditya.yaml`) and an editable knowledge base
+(`config/templates/candidate_profile.md`). Edit those two files — they are
+plain Markdown/YAML and are meant to be reviewed by hand.
 
 ```bash
-cp config/profiles/example.yaml config/profiles/myprofile.yaml
-# Edit myprofile.yaml with your preferences
-# Place your resume at config/resumes/master.pdf
+# 1. Your verified facts (roles, projects, links, constraints)
+open config/templates/candidate_profile.md
+
+# 2. Your search (keywords, part-time/remote filters, exclusions)
+open config/profiles/aditya.yaml
+
+# 3. Validate profile + every template
+uv run job-agent content check
+
+# 4. Preview a grounded cover letter + email for a sample job
+uv run job-agent content preview --company "Acme" --title "Part-time Design Engineer"
 ```
+
+You can still generate a profile from a CV in the dashboard
+(`/settings` → "Generate Profile from CV"), but review the output: the grounded
+templates only use facts you confirm.
 
 ### Run the Pipeline
 
 ```bash
-# Run the full pipeline once
-uv run job-agent run --profile config/profiles/myprofile.yaml --once
+# Fast, no-browser discovery from public feeds
+uv run job-agent feeds -q "design engineer" -n 20
 
-# Dry-run (discover + match only, no applications)
-uv run job-agent run --profile config/profiles/myprofile.yaml --once --dry-run
+# Dry-run (default): discover + match, write nothing
+uv run job-agent run --profile config/profiles/aditya.yaml --once
 
-# Run on a schedule (checks every hour, respects activity window)
-uv run job-agent run --profile config/profiles/myprofile.yaml
+# Create the approval sheet, push jobs, edit decision=approve, pull back
+uv run job-agent sheet template
+uv run job-agent sheet push
+uv run job-agent sheet pull
 
-# Apply to approved review queue jobs
-uv run job-agent apply-approved
+# Submit only approved jobs (approval is still required per job)
+uv run job-agent apply-approved --live
 
-# Search without applying
-uv run job-agent search --platform linkedin --query "Python Developer" --location "Remote"
+# AI-training gigs (account + assessment lane)
+uv run job-agent gigs refresh
+uv run job-agent gigs list
 
-# Run on a specific platform only
-uv run job-agent run --profile config/profiles/myprofile.yaml --once --platform linkedin
+# Run on a schedule (hourly, single instance, activity window respected)
+uv run job-agent run --profile config/profiles/aditya.yaml
+
+# Search one platform without applying
+uv run job-agent search --platform linkedin --query "Design Engineer" --location "Remote"
 ```
 
 ### First-Time Login
@@ -125,23 +154,26 @@ Once sessions are saved, you can switch back to `headless: true` for unattended 
 ## How the Pipeline Works
 
 ```
-Discover → Match → Decide → Tailor → Apply → Track
+Feeds ─┐
+Boards ─┼→ Deduplicate → Match → Decide → Approve → Tailor → Apply → Track → Sheet
+Ego ───┘
 ```
 
-1. **Discover** — Searches jobs across all connected platforms using your profile keywords and locations
+1. **Discover** — Fast structured feeds first, then board searches (Playwright or Ego Lite) using your profile keywords and locations
 2. **Deduplicate** — Skips jobs already seen (external ID matching)
 3. **Match** — AI scores each job 0.0–1.0 against your profile (skills, experience, salary, location)
 4. **Decide** — Based on score:
-   - **≥ 0.80** → Auto-apply
-   - **0.70 – 0.79** → Queue for manual review in dashboard
+   - **≥ 0.90** → Queue for approval (submitted only after you approve)
+   - **0.70 – 0.89** → Queue for manual review in dashboard
    - **< 0.70** → Skip
-5. **Tailor** — For each application: generates an ATS-optimized resume and cover letter
-6. **Apply** — Submits the application:
+5. **Approve** — High scorers wait in the dashboard / sheet until you approve them
+6. **Tailor** — Renders a resume, cover letter, email subject/body and connection note from your editable Markdown templates, grounded in verified facts
+7. **Apply** — Submits only approved jobs, then verifies the confirmation before recording success:
    - **Easy Apply** jobs → fills the platform's quick-apply form
    - **External ATS** (Greenhouse, Lever, Workday, Ashby) → navigates to the ATS, detects form fields, uploads resume, fills screening questions via AI, and submits
    - **Email apply** pages → sends resume + cover letter via SMTP
    - **Generic forms** → AI-powered field detection and filling
-7. **Track** — Stores results in the database with status, match reasoning, and error details
+8. **Track** — Stores results in the database with status, match reasoning, verification state and error details, then mirrors them into the sheet
 
 ## Dashboard
 
@@ -184,8 +216,8 @@ Manage your job queue from your phone via interactive bot commands.
 uv run job-agent bot setup
 
 # Or set manually in .env:
-# TELEGRAM_BOT_TOKEN=your-token-from-botfather
-# TELEGRAM_CHAT_ID=your-chat-id
+# JOB_AGENT_TELEGRAM_BOT_TOKEN=your-token-from-botfather
+# JOB_AGENT_TELEGRAM_CHAT_ID=your-chat-id
 
 # Start the bot (long-polling, no public URL needed)
 uv run job-agent bot telegram
@@ -197,9 +229,9 @@ Discord uses slash commands via HTTP interactions — requires the dashboard to 
 
 ```bash
 # Set in .env:
-# DISCORD_BOT_TOKEN=your-bot-token
-# DISCORD_APPLICATION_ID=your-app-id
-# DISCORD_PUBLIC_KEY=your-public-key
+# JOB_AGENT_DISCORD_BOT_TOKEN=your-bot-token
+# JOB_AGENT_DISCORD_APPLICATION_ID=your-app-id
+# JOB_AGENT_DISCORD_PUBLIC_KEY=your-public-key
 
 # Register slash commands (instant for a specific guild)
 uv run job-agent bot discord-register --guild-id YOUR_GUILD_ID
@@ -312,11 +344,11 @@ Configurable per platform in `config/default.yaml`:
 
 | Score       | Action                    |
 |-------------|---------------------------|
-| ≥ 0.80      | Auto-apply                |
-| 0.70 – 0.79 | Queue for manual review   |
+| ≥ 0.90      | Queue for approval        |
+| 0.70 – 0.89 | Queue for manual review   |
 | < 0.70      | Skip                      |
 
-Thresholds are configurable from `config/default.yaml` or the dashboard Settings page. Dashboard changes persist to `.env` and survive restarts.
+Thresholds are configurable from `config/default.yaml` or the dashboard Settings page. With `agent.require_approval_for_all: true` (the default) even a 0.99 job waits for your approval. Per-platform `max_applications_per_day` is enforced before every submission.
 
 ## External ATS Support
 
@@ -365,16 +397,26 @@ job-agent/
 
 ## Security
 
+- Dashboard requires a token (`~/.job-agent/dashboard_token`, printed on first start) and enforces CSRF on every mutating request
+- The Flask debugger is **off** by default (`dashboard.debug: false`)
 - Platform credentials are Fernet-encrypted, key stored at `~/.job-agent/fernet.key` (0600 perms)
 - API keys live in `.env` (gitignored) or are set via the dashboard
-- Database at `~/.job-agent/agent.db` (SQLite, outside repo)
+- Database at `~/.job-agent/agent.db` (SQLite, outside repo), schema managed by versioned Alembic migrations
 - Browser state at `~/.job-agent/browser_state/` (cookies, localStorage)
+- Dry-run is the default; `--live` is required to submit, and submissions still need approval
 - All sensitive data is stored outside the repo directory
 
 ## Testing
 
 ```bash
-uv run pytest tests/ -v   # 161 tests
+uv run pytest tests/ -q   # 416 tests
+```
+
+If your environment's shared pytest temp directory throws `EEXIST` (seen under
+sandboxed shells), use a fresh base temp directory:
+
+```bash
+TMPDIR=$(mktemp -d) uv run pytest -q --basetemp="$TMPDIR/base"
 ```
 
 ## License

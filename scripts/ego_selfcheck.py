@@ -15,6 +15,7 @@ from pathlib import Path
 
 from job_agent.db.models import Platform
 from job_agent.platforms.base import JobPosting
+from job_agent.platforms.ego.applicator import EgoApplyResult
 from job_agent.platforms.ego.client import EgoError, EgoClient
 from job_agent.platforms.ego.discovery import EgoDiscovery
 from job_agent.platforms.ego.driver import EgoDriver
@@ -32,11 +33,18 @@ class StubClient:
         return self.payload
 
 
+class StubApplicator:
+    """Avoid touching the real ego-browser during an offline self-check."""
+
+    def apply(self, url, resume_path, cover_letter_path="", *, fields=None):
+        return EgoApplyResult(False, "pending_human", "awaiting human submit", url)
+
+
 def check_client_reads_stderr_result() -> None:
     """ego-browser prints console.log to stderr: the client must find it there."""
     with tempfile.TemporaryDirectory() as tmp:
         fake = Path(tmp) / "ego-browser"
-        fake.write_text('#!/bin/bash\nprintf \'%s\\n\' \'__RESULT__{"ok": true}\' 1>&2\n')
+        fake.write_text("#!/bin/bash\nprintf '%s\\n' '__RESULT__{\"ok\": true}' 1>&2\n")
         fake.chmod(0o755)
         client = EgoClient(binary=str(fake))
         assert client.run("") == {"ok": True}, "stderr __RESULT__ not read"
@@ -105,15 +113,19 @@ def check_search_survives_ego_error() -> None:
     assert EgoDiscovery(Boom(), "linkedin").search(query="q") == []
 
 
-def check_unsupported_platform_raises() -> None:
+def check_board_platforms_are_supported() -> None:
+    """SEA boards are now supported through the generic Ego board lane."""
+    for name in ("wellfound", "jobstreet", "glints", "kalibrr", "seek"):
+        discovery = EgoDiscovery(StubClient({"rows": []}), name)
+        assert discovery.platform == name
     try:
-        EgoDiscovery(StubClient({}), "wellfound")
+        EgoDiscovery(StubClient({}), "not-a-real-board")
     except ValueError:
         return
-    raise AssertionError("wellfound must raise until its markup is verified")
+    raise AssertionError("unknown board must raise ValueError")
 
 
-def check_driver_needs_no_login() -> None:
+def check_driver_hands_off_before_submit() -> None:
     class Settings:
         ego = type(
             "E",
@@ -125,6 +137,9 @@ def check_driver_needs_no_login() -> None:
                 "timeout": 5,
                 "task_space": "job-agent",
                 "settle_ms": 100,
+                "apply_enabled": True,
+                "require_human_submit": True,
+                "board_config_path": "",
             },
         )()
 
@@ -132,6 +147,7 @@ def check_driver_needs_no_login() -> None:
             pass
 
     driver = EgoDriver(Settings(), "linkedin")
+    driver._applicator = StubApplicator()
     job = JobPosting(
         external_id="1",
         platform=Platform.LINKEDIN,
@@ -142,6 +158,8 @@ def check_driver_needs_no_login() -> None:
     assert driver.requires_login is False
     assert driver.login("user", "pass") is None
     assert driver.apply(job, "resume.pdf") is False
+    assert driver.last_result is not None
+    assert driver.last_result.status == "pending_human"
 
 
 CHECKS = [
@@ -151,8 +169,8 @@ CHECKS = [
     check_search_maps_rows_to_postings,
     check_search_skips_incomplete_rows,
     check_search_survives_ego_error,
-    check_unsupported_platform_raises,
-    check_driver_needs_no_login,
+    check_board_platforms_are_supported,
+    check_driver_hands_off_before_submit,
 ]
 
 if __name__ == "__main__":

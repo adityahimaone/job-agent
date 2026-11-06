@@ -16,6 +16,32 @@
     <!-- HTMX -->
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
 
+    <!-- CSRF: inject the token into every POST form and HTMX request -->
+    <meta name="csrf-token" content="{{ csrf_token() if csrf_enabled else '' }}">
+    <script>
+    (function () {
+        var meta = document.querySelector('meta[name="csrf-token"]');
+        var token = meta ? meta.content : '';
+        if (!token) return;
+        function inject(root) {
+            (root || document).querySelectorAll('form').forEach(function (f) {
+                var method = (f.getAttribute('method') || '').toLowerCase();
+                if (method !== 'post' || f.querySelector('input[name="csrf_token"]')) return;
+                var input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'csrf_token';
+                input.value = token;
+                f.appendChild(input);
+            });
+        }
+        document.addEventListener('DOMContentLoaded', function () { inject(document); });
+        document.addEventListener('htmx:configRequest', function (e) {
+            e.detail.headers['X-CSRF-Token'] = token;
+        });
+        document.addEventListener('htmx:afterSwap', function (e) { inject(e.detail.target); });
+    })();
+    </script>
+
     <!-- Custom Dashboard CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
 
@@ -112,6 +138,11 @@
                 <button class="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark mode" aria-label="Toggle theme">
                     <i class="bi bi-moon-fill" id="theme-icon"></i>
                 </button>
+                {% if auth_enabled %}
+                <a class="theme-toggle" href="/logout" title="Sign out" aria-label="Sign out" style="display:inline-flex;align-items:center;justify-content:center;text-decoration:none;">
+                    <i class="bi bi-box-arrow-right"></i>
+                </a>
+                {% endif %}
             </div>
         </nav>
 

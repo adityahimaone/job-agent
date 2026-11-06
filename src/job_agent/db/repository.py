@@ -45,6 +45,29 @@ class JobRepository:
     def exists(self, external_id: str, platform: Platform) -> bool:
         return self.get_by_external_id(external_id, platform) is not None
 
+    def filter_existing(self, keys: list[tuple[str, Platform]]) -> set[tuple[str, str]]:
+        """Return existing (external_id, platform.value) pairs in ONE query.
+
+        Replaces the per-posting ``exists()`` N+1 SELECTs during discovery.
+        """
+        if not keys:
+            return set()
+        found: set[tuple[str, str]] = set()
+        pairs = [(k, p.value if isinstance(p, Platform) else str(p)) for k, p in keys]
+        # SQLite has a practical bound on composite IN tuples; chunk defensively.
+        for start in range(0, len(pairs), 400):
+            chunk = pairs[start : start + 400]
+            ids = [k for k, _ in chunk]
+            plats = sorted({p for _, p in chunk})
+            stmt = select(Job.external_id, Job.platform).where(Job.external_id.in_(ids))
+            for external_id, platform in self.session.execute(stmt):
+                value = (
+                    platform.value if isinstance(platform, Platform) else str(platform)
+                )
+                if value in plats:
+                    found.add((external_id, value))
+        return found
+
     def list_by_status(
         self, status: JobStatus, limit: int = 100, offset: int = 0
     ) -> list[Job]:

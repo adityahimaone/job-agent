@@ -100,27 +100,18 @@ class LinkedInDiscovery:
             )
         human_delay(1000, 2000)
 
-        # Detect which view we're in: public (base-search-card) vs authenticated
-        is_public_view = (
-            self.page.locator("div.base-search-card.job-search-card").count() > 0
-        )
-
         cards = self.page.locator(SELECTORS.job_card).all()
 
         for card in cards:
             try:
                 job = self._parse_card(card)
                 if job:
-                    if not is_public_view:
-                        # Authenticated view: click card to load side panel
+                    # One DOM pass: clicking every card with a 1.5-2.5s sleep made
+                    # discovery take minutes. Full descriptions are fetched later
+                    # for shortlisted jobs only; the card text is a cheap preview.
+                    if not job.description:
                         try:
-                            card.click()
-                            human_delay(1500, 2500)
-                            desc_el = self.page.locator(
-                                SELECTORS.detail_description
-                            ).first
-                            if desc_el.count() > 0:
-                                job.description = desc_el.inner_text().strip()
+                            job.description = (card.inner_text() or "").strip()[:2000]
                         except Exception:
                             pass
                     jobs.append(job)

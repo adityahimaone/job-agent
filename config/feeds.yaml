@@ -1,0 +1,236 @@
+# =============================================================================
+# job-agent: fast-lane structured feeds + Ego Lite boards + AI-training gigs
+# =============================================================================
+#
+# WHY THIS FILE EXISTS
+# --------------------
+# `config/discovery_sources.yaml` is the SHARED config file owned by the Ego
+# Lite browser lane (it holds `ego_boards:`). To avoid clobbering another
+# agent's work, the structured-feed / board / gig definitions live HERE in
+# `config/feeds.yaml` instead.
+#
+# WIRING
+# ------
+#   from job_agent.discovery import load_feed_specs, load_board_specs
+#   feed_specs  = load_feed_specs("config/feeds.yaml")   # reads `feeds:`
+#   board_specs = load_board_specs("config/feeds.yaml")  # reads `boards:`
+#
+# The default `feeds.config_path` in config/default.yaml points at
+# `config/discovery_sources.yaml`. That file has no `feeds:`/`boards:` keys, so
+# load_feed_specs()/load_board_specs() fall back to the complete BUILT-IN
+# defaults in code (default_feed_specs() / default_board_specs()). To make THIS
+# file authoritative, set:
+#   feeds.config_path: "config/feeds.yaml"
+# (or pass the path explicitly). Both loaders tolerate a missing/invalid file.
+#
+# HOW TO ADD / ENABLE A SOURCE
+# ----------------------------
+#   * Set `enabled: true` on an existing feed, or add a new entry with a
+#     `name` + `kind` (+ `url`). Unknown `kind`/`platform` values are safe: they
+#     are recorded as a failed FeedResult (never crash the run) and map to
+#     Platform.OTHER.
+#   * `kind` is one of: remotive | remoteok | arbeitnow | greenhouse | lever |
+#     ashby | linkedin_guest.
+#   * For remotive/remoteok/arbeitnow/linkedin_guest, `url` is the full
+#     endpoint. For greenhouse/lever/ashby, `url` is the company BOARD TOKEN
+#     (or a full endpoint URL) - replace REPLACE_WITH_* with a real token and
+#     flip `enabled: true`.
+#   * Feed failures are always non-fatal: one bad feed just yields a warning
+#     plus a FeedResult.error and the others continue. With no network at all,
+#     discovery returns [].
+#
+# ABOUT BOARDS + EGO LITE
+# -----------------------
+# The `boards:` entries below are URL templates + CSS selector hints. They are
+# NOT scraped programmatically. Pages that require a signed-in session, a
+# CAPTCHA, or region-specific rendering (LinkedIn, JobStreet, Glints, ...)
+# are driven by the HUMAN-SUPERVISED Ego Lite browser lane. Each `search_url`
+# MUST contain {query} and {location}; remote / part-time friendly flags are
+# already included where the site supports them (e.g. LinkedIn f_WT=2 / f_JT=P).
+# Selectors are starting points - re-verify against the live DOM when markup
+# changes. `platform` is a hint; unknown values map to Platform.OTHER.
+#
+# See docs/COVERAGE.md for the full guide.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# feeds: fast structured-feed discovery (parsed by job_agent.discovery.feeds)
+# -----------------------------------------------------------------------------
+feeds:
+  # Free public JSON APIs - enabled out of the box (no credentials needed).
+  - name: remotive
+    kind: remotive
+    url: "https://remotive.com/api/remote-jobs"
+    enabled: true
+    platform: remotive
+
+  - name: remoteok
+    kind: remoteok
+    url: "https://remoteok.com/api"
+    enabled: true
+    platform: remoteok
+
+  - name: arbeitnow
+    kind: arbeitnow
+    url: "https://www.arbeitnow.com/api/job-board-api"
+    enabled: true
+    platform: arbeitnow
+
+  # Public LinkedIn "guest" HTML fragment (regex-parsed, often rate-limited).
+  - name: linkedin_guest
+    kind: linkedin_guest
+    url: "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search"
+    enabled: true
+    platform: linkedin
+
+  # ATS job boards - supply a real board token, then enable. Disabled by
+  # default so an unconfigured token never produces noisy failed requests.
+  - name: greenhouse_example
+    kind: greenhouse
+    url: "REPLACE_WITH_GREENHOUSE_TOKEN"   # e.g. "stripe"
+    enabled: false
+    platform: greenhouse
+
+  - name: lever_example
+    kind: lever
+    url: "REPLACE_WITH_LEVER_TOKEN"        # e.g. "netlify"
+    enabled: false
+    platform: lever
+
+  - name: ashby_example
+    kind: ashby
+    url: "REPLACE_WITH_ASHBY_TOKEN"        # e.g. "ramp"
+    enabled: false
+    platform: ashby
+
+# -----------------------------------------------------------------------------
+# boards: Ego Lite (human-supervised) search pages - NEVER scraped here
+# -----------------------------------------------------------------------------
+boards:
+  - name: LinkedIn
+    platform: linkedin
+    # f_WT=2 = Remote, f_JT=P = Part-time
+    search_url: "https://www.linkedin.com/jobs/search?keywords={query}&location={location}&f_WT=2&f_JT=P"
+    card_selector: ".base-card, li.jobs-search-results__list-item"
+    title_selector: ".base-search-card__title, .job-card-list__title"
+    company_selector: ".base-search-card__subtitle"
+    location_selector: ".job-search-card__location"
+    link_selector: "a.base-card__full-link"
+    enabled: true
+
+  - name: Wellfound
+    platform: wellfound
+    search_url: "https://wellfound.com/jobs?query={query}&location={location}&remote=true"
+    card_selector: "[data-test='JobCard'], .job-listing"
+    title_selector: "h2, h3"
+    company_selector: ".company-name"
+    location_selector: ".location"
+    link_selector: "a[href*='/jobs/']"
+    enabled: true
+
+  # --- SEA boards ---
+  - name: JobStreet Indonesia
+    platform: jobstreet
+    search_url: "https://id.jobstreet.com/id/{query}-jobs/in-{location}?workFromHome=true"
+    card_selector: "article[data-testid='job-card'], div[data-testid='job-card']"
+    title_selector: "[data-testid='job-card-title'], h2"
+    company_selector: "[data-testid='job-card-company']"
+    location_selector: "[data-testid='job-card-location']"
+    link_selector: "a[data-testid='job-card-title']"
+    enabled: true
+
+  - name: JobStreet
+    platform: jobstreet
+    search_url: "https://www.jobstreet.com/{query}-jobs/in-{location}?workFromHome=true"
+    card_selector: "article[data-testid='job-card'], div[data-testid='job-card']"
+    title_selector: "[data-testid='job-card-title'], h2"
+    company_selector: "[data-testid='job-card-company']"
+    location_selector: "[data-testid='job-card-location']"
+    link_selector: "a[data-testid='job-card-title']"
+    enabled: true
+
+  - name: Glints
+    platform: glints
+    search_url: "https://glints.com/id/opportunities/job_explorer?keywords={query}&location={location}&workArrangement=REMOTE"
+    card_selector: "[data-testid='job-card'], .JobCard"
+    title_selector: "h2, h3"
+    company_selector: ".company-name"
+    location_selector: ".location"
+    link_selector: "a[href*='/opportunities/jobs/']"
+    enabled: true
+
+  - name: Kalibrr
+    platform: kalibrr
+    search_url: "https://www.kalibrr.com/id-ID/job-board?text={query}&location={location}&remote=true"
+    card_selector: ".job-card, .k-job-card"
+    title_selector: "h2, h3, .k-job-card__title"
+    company_selector: ".company-name, .k-job-card__company"
+    location_selector: ".location, .k-job-card__location"
+    link_selector: "a[href*='/c/']"
+    enabled: true
+
+  - name: Seek
+    platform: seek
+    # worktype=parttime (Seek values: fulltime | parttime | contract)
+    search_url: "https://www.seek.com.au/{query}-jobs/in-{location}?worktype=parttime"
+    card_selector: "article[data-testid='job-card'], div[data-testid='job-card']"
+    title_selector: "a[data-automation='jobTitle'], h2"
+    company_selector: "a[data-automation='jobCompany']"
+    location_selector: "[data-testid='job-card-location']"
+    link_selector: "a[data-automation='jobTitle']"
+    enabled: true
+
+  # --- remote-first boards ---
+  - name: RemoteOK
+    platform: remoteok
+    search_url: "https://remoteok.com/?tags={query}&location={location}&remote=true"
+    card_selector: "tr.job, li.job"
+    title_selector: "h2, .job-title"
+    company_selector: ".company, [itemprop='hiringOrganization']"
+    location_selector: ".location, .job-location"
+    link_selector: "a[href*='/remote-jobs/']"
+    enabled: true
+
+  - name: We Work Remotely
+    platform: other
+    search_url: "https://weworkremotely.com/remote-jobs/search?term={query}&location={location}"
+    card_selector: "li.feature, article.job"
+    title_selector: ".title, h2"
+    company_selector: ".company"
+    location_selector: ".region, .location"
+    link_selector: "a[href*='/remote-jobs/']"
+    enabled: true
+
+  - name: Otta
+    platform: other
+    search_url: "https://app.otta.com/jobs/search?query={query}&location={location}&remote=true&employmentType=part_time"
+    card_selector: "[data-testid='job-card'], .job-card"
+    title_selector: "h2, h3"
+    company_selector: ".company-name"
+    location_selector: ".location"
+    link_selector: "a[href*='/jobs/']"
+    enabled: true
+
+# -----------------------------------------------------------------------------
+# gigs: AI-training / expert-network lane (account + assessment, NO resume)
+# -----------------------------------------------------------------------------
+# Alignerr is the ONLY enabled network. The others are stubs that return []
+# with a "manual configuration required" warning - they have no stable public
+# feed and must NOT be given invented openings. Gigs never send a CV / cover
+# letter; onboarding is account + assessment. See docs/COVERAGE.md.
+gigs:
+  min_hourly_rate: 20.0
+  remote_only: true
+  networks:
+    - name: alignerr
+      enabled: true
+      url: "https://www.alignerr.com/jobs"
+    - name: outlier
+      enabled: false
+      note: "manual account + assessment required; no public feed"
+    - name: dataannotation
+      enabled: false
+      note: "manual account + assessment required; no public feed"
+    - name: mercor
+      enabled: false
+      note: "manual account + assessment required; no public feed"

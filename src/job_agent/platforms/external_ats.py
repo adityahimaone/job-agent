@@ -236,12 +236,25 @@ class ExternalATSApplicator:
         msg = MIMEMultipart()
         msg["From"] = settings.smtp_user
         msg["To"] = to_email
-        msg["Subject"] = f"Application for {job.title}"
 
-        # Body text — use cover letter content if available, otherwise generic
+        # Prefer a grounded, job-specific email produced by the content engine.
         body_text = ""
-        if cover_letter_path and Path(cover_letter_path).exists():
-            body_text = Path(cover_letter_path).read_text()
+        subject = f"Application for {job.title}"
+        grounded_email = ""
+        if cover_letter_path:
+            grounded_email = str(cover_letter_path).replace(
+                "_cover_letter.txt", "_email.txt"
+            )
+        if grounded_email and Path(grounded_email).exists():
+            raw = Path(grounded_email).read_text(encoding="utf-8")
+            first, sep, rest = raw.partition("\n\n")
+            if first.lower().startswith("subject:") and sep:
+                subject = first.split(":", 1)[1].strip()
+                body_text = rest.strip()
+            else:
+                body_text = raw.strip()
+        elif cover_letter_path and Path(cover_letter_path).exists():
+            body_text = Path(cover_letter_path).read_text(encoding="utf-8")
         else:
             body_text = (
                 f"Dear Hiring Manager,\n\n"
@@ -250,6 +263,7 @@ class ExternalATSApplicator:
                 f"Thank you for your consideration.\n\n"
                 f"Best regards"
             )
+        msg["Subject"] = subject
         msg.attach(MIMEText(body_text, "plain"))
 
         # Attach resume

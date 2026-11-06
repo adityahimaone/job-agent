@@ -27,6 +27,7 @@ class ColdEmailGenerator:
         recipient_title: str,
         matched_skills: list[str],
         candidate_summary: str,
+        job_description: str = "",
     ) -> dict[str, str]:
         """Generate a cold email with subject and body.
 
@@ -39,6 +40,7 @@ class ColdEmailGenerator:
             job_title=job_title,
             matched_skills=matched_skills,
             candidate_summary=candidate_summary,
+            job_description=(job_description or "")[:2500],
         )
 
         raw = self.ai.complete(

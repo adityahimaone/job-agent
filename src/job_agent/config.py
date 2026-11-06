@@ -14,7 +14,12 @@ class AgentConfig(BaseModel):
     activity_start_hour: int = 8
     activity_end_hour: int = 23
     schedule_interval: int = 60
+    # Code default stays False for unit tests; config/default.yaml sets True for
+    # real deployments so applications never happen unattended by accident.
     dry_run: bool = False
+    require_approval_for_all: bool = True  # No unattended submissions.
+    max_run_minutes: int = 25  # Hard wall-clock budget for one pipeline run.
+    cache_ai_responses: bool = True
     ai_request_timeout: int = 60  # seconds for AI API requests
     ollama_request_timeout: int = 120  # seconds for local Ollama requests
 
@@ -23,7 +28,51 @@ class MatchingConfig(BaseModel):
     auto_apply_threshold: float = 0.80
     review_threshold: float = 0.70
     model: str = ""
+    # Kept for backwards compatibility; use the two explicit budgets below.
     max_ai_calls_per_run: int = 20
+    max_match_calls_per_run: int = 40
+    max_generation_calls_per_run: int = 60
+    max_cost_usd_per_run: float = 1.0
+
+
+class ContentConfig(BaseModel):
+    """Human-editable Markdown templates and grounded document generation."""
+
+    mode: str = "grounded"  # "grounded" | "legacy"
+    templates_dir: str = "config/templates"
+    candidate_profile: str = "config/templates/candidate_profile.md"
+    output_dir: str = ""  # empty = <data_dir>/documents
+    require_grounding: bool = True
+    prompt_version: str = "2026-11-06"
+
+
+class SheetsConfig(BaseModel):
+    """Spreadsheet mirror + human approval surface."""
+
+    enabled: bool = True
+    backend: str = "csv"  # "csv" | "google"
+    directory: str = "~/.job-agent/sheets"
+    spreadsheet_id: str = ""
+    credentials_path: str = ""
+    pull_decisions: bool = True
+
+
+class FeedsConfig(BaseModel):
+    """Fast discovery through public JSON/RSS feeds."""
+
+    enabled: bool = True
+    config_path: str = "config/discovery_sources.yaml"
+    max_workers: int = 6
+    timeout: int = 12
+
+
+class GigsConfig(BaseModel):
+    """AI-training / expert-network opportunities."""
+
+    enabled: bool = True
+    networks: list[str] = Field(default_factory=lambda: ["alignerr"])
+    min_hourly_rate: float = 20.0
+    remote_only: bool = True
 
 
 class ResumeConfig(BaseModel):
@@ -111,6 +160,9 @@ class EgoConfig(BaseModel):
     timeout: int = 180
     task_space: str = "job-agent"
     settle_ms: int = 2500
+    apply_enabled: bool = True
+    require_human_submit: bool = True
+    board_config_path: str = "config/discovery_sources.yaml"
 
 
 class EmailNotificationConfig(BaseModel):
@@ -149,6 +201,12 @@ class NotificationsConfig(BaseModel):
 class DashboardConfig(BaseModel):
     host: str = "127.0.0.1"
     port: int = 5000
+    debug: bool = False
+    # Code defaults are permissive so unit tests can use create_app() directly.
+    # config/default.yaml enables both for real deployments.
+    auth_enabled: bool = False
+    auth_token: str = ""  # empty = read/generate <data_dir>/dashboard_token
+    csrf_enabled: bool = False
 
 
 class Settings(BaseSettings):
@@ -207,6 +265,10 @@ class Settings(BaseSettings):
     ego: EgoConfig = EgoConfig()
     notifications: NotificationsConfig = NotificationsConfig()
     dashboard: DashboardConfig = DashboardConfig()
+    content: ContentConfig = ContentConfig()
+    sheets: SheetsConfig = SheetsConfig()
+    feeds: FeedsConfig = FeedsConfig()
+    gigs: GigsConfig = GigsConfig()
 
     def model_post_init(self, __context) -> None:
         """Wire top-level proxy_url into browser.proxy if not already set."""
@@ -224,6 +286,43 @@ class Settings(BaseSettings):
         if self.database_url:
             return self.database_url
         return f"sqlite:///{self.data_dir / 'agent.db'}"
+
+    @property
+    def documents_dir(self) -> Path:
+        path = (
+            Path(self.content.output_dir).expanduser()
+            if self.content.output_dir
+            else self.data_dir / "documents"
+        )
+        path.mkdir(parents=True, exist_ok=True)
+        return path
+
+    @property
+    def sheets_dir(self) -> Path:
+        path = Path(self.sheets.directory).expanduser()
+        path.mkdir(parents=True, exist_ok=True)
+        return path
+
+    def resolve_path(self, value: str) -> Path:
+        """Resolve a config path relative to the project root, else expand ~."""
+        p = Path(value).expanduser()
+        if p.is_absolute():
+            return p
+        return (Path.cwd() / p).resolve()
+
+    def dashboard_token(self) -> str:
+        """Return a stable auth token, generating and persisting one if needed."""
+        if self.dashboard.auth_token:
+            return self.dashboard.auth_token
+        path = self.data_dir / "dashboard_token"
+        if path.exists():
+            return path.read_text().strip()
+        import secrets
+
+        token = secrets.token_urlsafe(24)
+        path.write_text(token + "\n")
+        path.chmod(0o600)
+        return token
 
 
 def _deep_merge(base: dict, override: dict) -> dict:

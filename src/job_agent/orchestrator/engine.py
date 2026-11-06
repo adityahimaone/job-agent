@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import datetime, timezone
 
 from apscheduler.schedulers.blocking import BlockingScheduler
@@ -71,6 +72,7 @@ class OrchestratorEngine:
                 self.settings, profile_path, platform, discover_only=discover_only
             )
 
+            meta = stats.get("_meta", {}) or {}
             run_repo.finish(
                 agent_run.id,
                 RunStatus.COMPLETED,
@@ -79,6 +81,9 @@ class OrchestratorEngine:
                 jobs_applied=stats["applied"],
                 jobs_queued=stats["queued"],
                 jobs_skipped=stats["skipped"],
+                timings=json.dumps(meta.get("timings", {})),
+                ai_calls=int(meta.get("ai_calls", 0)),
+                estimated_cost_usd=float(meta.get("estimated_cost_usd", 0.0)),
             )
             session.commit()
             return stats
@@ -111,6 +116,9 @@ class OrchestratorEngine:
             args=[profile_path, platform],
             id="pipeline",
             next_run_time=datetime.now(timezone.utc),  # Run immediately first
+            max_instances=1,  # never overlap two pipeline runs
+            coalesce=True,  # collapse missed runs into one
+            misfire_grace_time=300,
         )
 
         try:

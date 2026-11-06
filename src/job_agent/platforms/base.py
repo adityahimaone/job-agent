@@ -54,6 +54,15 @@ class JobPosting:
     salary: str | None = None
     easy_apply: bool = False
     remote: bool = False
+    # Structured employment metadata (Phase 3). "" means "unknown".
+    employment_type: str = ""
+    remote_policy: str = ""
+    timezone: str = ""
+    hours_per_week: float | None = None
+    currency: str = ""
+    salary_period: str = ""
+    requirements: str = ""
+    source: str = ""
     extra: dict = field(default_factory=dict)
 
 

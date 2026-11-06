@@ -86,7 +86,7 @@ class IndeedDriver(PlatformDriver):
     ) -> bool:
         if not self._applicator:
             raise RuntimeError("Not logged in.")
-        return self._applicator.apply(job, resume_path)
+        return self._applicator.apply(job, resume_path, cover_letter_path, answers)
 
     def is_already_applied(self, job: JobPosting) -> bool:
         return False  # Indeed doesn't easily show applied status

@@ -13,6 +13,9 @@ You are an expert job matching system. Analyze the following job posting against
 - **Title**: {{ job_title }}
 - **Company**: {{ company }}
 - **Location**: {{ location }}
+- **Employment Type**: {{ employment_type | default('not stated', true) }}
+- **Remote Policy**: {{ remote_policy | default('not stated', true) }}
+- **Timezone / Hours**: {{ timezone | default('not stated', true) }}
 - **Description**:
 {{ description }}
 
@@ -23,6 +26,7 @@ You are an expert job matching system. Analyze the following job posting against
 - **Experience Level**: {{ experience_level }}
 - **Remote Preference**: {{ remote_preference }}
 - **Minimum Salary**: {{ salary_minimum }}
+- **Candidate Constraints**: {{ candidate_constraints | default('none stated', true) }}
 
 {% if excluded_companies %}
 - **Excluded Companies**: {{ excluded_companies | join(', ') }}
@@ -78,7 +82,7 @@ Tailor the following master resume for the specific job posting below. Optimize 
 2. Use keywords from the job description naturally in the summary and bullet points.
 3. Keep ALL factual information — do NOT remove any roles, projects, education, or certifications.
 4. PRESERVE ALL LINKS using markdown syntax: [Email Address](mailto:...) | [Portfolio](https://...) | [LinkedIn](https://...) | [GitHub](https://...)
-5. Keep the EXACT same section structure as the master resume: PROFESSIONAL SUMMARY, SKILLS, PROFESSIONAL EXPERIENCE, EARLY CAREER, PROJECTS, EDUCATION/CERTIFICATIONS.
+5. Keep the EXACT same section structure and heading names as the master resume, whatever they are (for example Summary / Experience / Projects / Skills / Education). Never invent, rename, or remove a section.
 
 ## Formatting Rules (follow exactly)
 - Preserve the candidate's name exactly as it appears in the master resume, formatted as `# FULL NAME`
@@ -136,7 +140,10 @@ Output ONLY the connection note text.
 COLD_EMAIL_TEMPLATE = _env.from_string("""\
 Write a concise, personalized cold email to {{ recipient_name }}, {{ recipient_title }} at {{ company }}, regarding the {{ job_title }} position.
 
-## Candidate Summary
+## Job Description (key points — reference one specific requirement)
+{{ job_description | default('Not available', true) }}
+
+## Candidate Summary (verified facts only)
 {{ candidate_summary }}
 
 ## Matched Skills

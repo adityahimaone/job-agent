@@ -1,0 +1,97 @@
+# Aditya Himawan — job search profile
+# ---------------------------------------------------------------------------
+# This file controls WHAT the agent searches for and how it filters results.
+# It is plain YAML: edit the quoted strings and lists, keep the indentation.
+# It does NOT generate documents — that is config/templates/candidate_profile.md
+# (see docs/TEMPLATES.md). Copy this file to tweak a different search.
+
+# Human-readable label for this profile.
+name: "Design Engineer / Frontend Engineer (React, Design Systems)"
+
+search:
+  # Job-title strings the agent searches for on each platform.
+  keywords:
+    - "Design Engineer"
+    - "Frontend Engineer React"
+    - "Design Systems Engineer"
+    - "Frontend Contract"
+    - "AI coding evaluation"
+  # Locations to search. "Remote" plus a couple of regions is usually enough.
+  locations:
+    - "Remote"
+    - "Indonesia"
+    - "APAC"
+  # onsite | hybrid | remote_only | remote_first
+  remote_preference: "remote_only"
+  # Allowed engagement types. Must match the candidate's constraints.
+  employment_types: [part_time, contract, freelance, full_time]
+  # entry | mid | senior | lead
+  experience_level: "mid"
+  # 0 = do not filter on salary. Hourly minimum is enforced below instead.
+  salary_minimum: 0
+
+# Hard filters applied to discovered postings.
+filters:
+  employment_types: [part_time, contract, freelance, full_time]
+  remote_only: true
+  # Acceptable timezone overlap with the candidate (Jakarta, GMT+7).
+  timezone_alignment: "GMT+7 ±4"
+  # Reject gigs paying below this hourly rate (USD).
+  min_hourly_rate: 30
+  # Part-time target: no more than this many hours per week.
+  max_hours_per_week: 20
+  # At least one of these must appear in the title/description. This is what
+  # stops unrelated "writer" / "sales" roles from reaching the review queue.
+  # Add or remove terms to widen or tighten the search.
+  include_keywords:
+    - "react"
+    - "typescript"
+    - "javascript"
+    - "next.js"
+    - "frontend"
+    - "front-end"
+    - "design engineer"
+    - "design system"
+    - "ui engineer"
+    - "web developer"
+    - "css"
+    - "tailwind"
+    - "ai coding"
+    - "llm evaluation"
+    - "data annotation"
+  # Postings containing any of these words are skipped.
+  exclude_keywords:
+    - "unpaid"
+    - "internship"
+    - "junior"
+    - "onsite"
+    - "relocation required"
+  # Companies to skip entirely (add exact names as needed).
+  exclude_companies: []
+
+# Skills used to score a match.
+skills:
+  required:
+    - "React"
+    - "TypeScript"
+    - "Next.js"
+  preferred:
+    - "design systems"
+    - "Tailwind CSS"
+    - "Zustand"
+    - "React Query"
+    - "Go"
+    - "Playwright"
+
+# Extra exclusion rules (kept separate from the search filters above).
+exclusions:
+  keywords:
+    - "unpaid"
+    - "intern"
+    - "junior"
+    - "clearance required"
+  companies: []
+
+# Tone + which resume template the legacy pipeline used.
+cover_letter_tone: "professional"
+resume_template: "resume_master"

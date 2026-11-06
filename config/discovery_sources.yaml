@@ -1,0 +1,34 @@
+# Discovery sources for job-agent.
+#
+# This file is shared: the structured-feeds feature may also keep its source
+# list here under its own keys. The ego(lite) browser lane reads ONLY the
+# `ego_boards` key below, so feed sources and ego boards can coexist.
+#
+# The six built-in ego boards (linkedin, wellfound, jobstreet, glints, kalibrr,
+# seek) work out of the box from src/job_agent/platforms/ego/boards.py. Add an
+# entry here to ADD a new board or OVERRIDE a built-in one's selectors. Only the
+# fields you set are required; the rest fall back to the built-in default (for
+# a brand-new board, provide at least search_url + card_selector).
+#
+# `search_url` MUST contain {query} and {location} placeholders (URL-encoded
+# automatically). Selectors are CSS and run via document.querySelectorAll inside
+# the browser page. `remote_hint` is a lowercase substring used to flag remote
+# roles; unknown `platform` values map to Platform.OTHER.
+ego_boards: {}
+#
+# ---- Example: add a custom board -------------------------------------------
+# ego_boards:
+#   myboard:
+#     platform: other
+#     search_url: "https://example.com/jobs?q={query}&loc={location}"
+#     card_selector: "article.job-card"
+#     title_selector: "h2"
+#     company_selector: ".company"
+#     location_selector: ".location"
+#     link_selector: "a.job-link"
+#     remote_hint: "remote"
+#
+# ---- Example: override a built-in selector ---------------------------------
+# ego_boards:
+#   wellfound:
+#     card_selector: "div[data-test='StartupJobRow']"

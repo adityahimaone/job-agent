@@ -1,39 +1,79 @@
 # Job Agent Default Configuration
+#
+# Everything here can be overridden by a second YAML passed with `--config`,
+# or by JOB_AGENT_<SECTION>__<KEY> environment variables.
+# Human-editable Markdown templates live in config/templates/ (see docs/TEMPLATES.md).
 
 agent:
-  # Activity window (only run during these hours)
   activity_start_hour: 8
   activity_end_hour: 23
-  # Schedule interval in minutes
   schedule_interval: 60
-  # Dry run mode (no actual applications)
-  dry_run: false
+  # Safe by default. Set to false only when you are ready for real submissions.
+  dry_run: true
+  # Every submission needs an explicit approval (dashboard, sheet, or bot).
+  require_approval_for_all: true
+  max_run_minutes: 25
+  cache_ai_responses: true
+  ai_request_timeout: 60
 
 matching:
-  # Score >= this: auto-apply
   auto_apply_threshold: 0.90
-  # Score >= this: queue for review
   review_threshold: 0.70
-  # Model for AI operations (empty = use provider default)
   model: ""
+  max_ai_calls_per_run: 20          # deprecated, kept for compatibility
+  max_match_calls_per_run: 40       # budget for scoring only
+  max_generation_calls_per_run: 60  # budget for resumes / letters / emails
+  max_cost_usd_per_run: 1.0
 
 resume:
-  # Path to master resume (PDF or Markdown)
-  master_resume: "config/resumes/master.pdf"
-  # Cover letter tone
+  master_resume: "config/templates/resume_master.md"
   cover_letter_tone: "professional"
+  use_latex: false
+
+# Grounded, human-editable document generation.
+content:
+  mode: "grounded"                 # grounded | legacy
+  templates_dir: "config/templates"
+  candidate_profile: "config/templates/candidate_profile.md"
+  output_dir: ""                   # empty = ~/.job-agent/documents
+  require_grounding: true
+  prompt_version: "2026-11-06"
+
+# Spreadsheet mirror + approval surface (see docs/SPREADSHEET.md).
+sheets:
+  enabled: true
+  backend: "csv"                   # csv | google
+  directory: "~/.job-agent/sheets"
+  spreadsheet_id: ""
+  credentials_path: ""
+  pull_decisions: true
+
+# Fast discovery from structured feeds (see docs/COVERAGE.md).
+feeds:
+  enabled: true
+  config_path: "config/feeds.yaml"
+  max_workers: 6
+  timeout: 12
+
+# AI-training / expert-network gigs (see docs/COVERAGE.md).
+gigs:
+  enabled: true
+  networks: ["alignerr"]
+  min_hourly_rate: 20.0
+  remote_only: true
 
 ego:
   # Drive the person's own ego(lite) browser instead of Playwright.
   enabled: false
-  # host/user of the machine running ego lite; empty = this machine
   host: ""
   user: ""
-  # empty = the versioned path inside ego lite.app
-  binary: ""
+  binary: ""                       # empty = auto-resolve Versions/Current
   timeout: 180
   task_space: "job-agent"
   settle_ms: 2500
+  apply_enabled: true
+  require_human_submit: true
+  board_config_path: "config/discovery_sources.yaml"
 
 platforms:
   linkedin:
@@ -82,13 +122,10 @@ platforms:
 
 browser:
   headless: false
-  # Persistent browser state directory
   state_dir: "~/.job-agent/browser_state"
-  # Optional proxy
   proxy: null
 
 notifications:
-  # Triggers: auto_applied, queued, failed, outreach_response
   email:
     enabled: false
     triggers: ["failed"]
@@ -99,3 +136,7 @@ notifications:
 dashboard:
   host: "127.0.0.1"
   port: 5000
+  debug: false
+  auth_enabled: true
+  auth_token: ""                   # empty = auto-generate at ~/.job-agent/dashboard_token
+  csrf_enabled: true

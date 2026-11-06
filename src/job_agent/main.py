@@ -79,6 +79,11 @@ def cmd_add_credential(ctx: click.Context, platform: str, username: str) -> None
     ),
 )
 @click.option("--dry-run", is_flag=True, help="Discover and match only, don't apply.")
+@click.option(
+    "--live",
+    is_flag=True,
+    help="Opt out of dry-run. Submissions still require an approval.",
+)
 @click.option("--once", is_flag=True, help="Run once instead of on schedule.")
 @click.pass_context
 def cmd_run(
@@ -86,14 +91,23 @@ def cmd_run(
     profile: str,
     platform: str | None,
     dry_run: bool,
+    live: bool,
     once: bool,
 ) -> None:
     """Run the job agent pipeline."""
     from job_agent.orchestrator.engine import OrchestratorEngine
 
     settings = ctx.obj["settings"]
+    if dry_run and live:
+        raise click.UsageError("--dry-run and --live are mutually exclusive")
     if dry_run:
         settings.agent.dry_run = True
+    elif live:
+        settings.agent.dry_run = False
+        click.echo(
+            "Live mode: jobs will be submitted only after an explicit approval "
+            "(dashboard, sheet, or bot)."
+        )
 
     init_db(settings)
     engine = OrchestratorEngine(settings)
@@ -106,12 +120,24 @@ def cmd_run(
 
 
 @cli.command("apply-approved")
+@click.option(
+    "--dry-run", is_flag=True, help="Report what would be submitted, change nothing."
+)
+@click.option(
+    "--live", is_flag=True, help="Opt out of dry-run and submit approved jobs."
+)
 @click.pass_context
-def cmd_apply_approved(ctx: click.Context) -> None:
+def cmd_apply_approved(ctx: click.Context, dry_run: bool, live: bool) -> None:
     """Apply to all approved jobs from the review queue (skips discovery)."""
     from job_agent.orchestrator.pipeline import apply_approved
 
     settings = ctx.obj["settings"]
+    if dry_run and live:
+        raise click.UsageError("--dry-run and --live are mutually exclusive")
+    if dry_run:
+        settings.agent.dry_run = True
+    elif live:
+        settings.agent.dry_run = False
     init_db(settings)
     stats = apply_approved(settings)
     click.echo(
@@ -167,14 +193,16 @@ def cmd_search(
 @click.pass_context
 def cmd_ego(ctx, action, platform, query, location, limit):
     """Talk to ego(lite): prove the bridge, or run one search."""
-    from job_agent.platforms.ego.client import DEFAULT_BINARY, EgoClient, EgoError
+    from job_agent.platforms.ego import client as ego_client
 
     settings = ctx.obj["settings"]
     cfg = settings.ego
-    client = EgoClient(
+    resolver = getattr(ego_client, "resolve_ego_binary", None)
+    binary = cfg.binary or (resolver() if resolver else ego_client.DEFAULT_BINARY)
+    client = ego_client.EgoClient(
         host=cfg.host or None,
         user=cfg.user,
-        binary=cfg.binary or DEFAULT_BINARY,
+        binary=binary,
         timeout=cfg.timeout,
     )
     try:
@@ -191,13 +219,13 @@ def cmd_ego(ctx, action, platform, query, location, limit):
 
         if not query:
             raise click.UsageError("--query is required for search")
-        found = EgoDiscovery(client, platform, task_space=cfg.task_space, settle_ms=cfg.settle_ms).search(
-            query=query, location=location, limit=limit
-        )
+        found = EgoDiscovery(
+            client, platform, task_space=cfg.task_space, settle_ms=cfg.settle_ms
+        ).search(query=query, location=location, limit=limit)
         click.echo(f"found {len(found)} postings")
         for j in found:
             click.echo(f"  {j.title} @ {j.company} - {j.url}")
-    except EgoError as exc:
+    except ego_client.EgoError as exc:
         click.echo(f"ego error: {exc}")
         raise SystemExit(1)
 
@@ -211,10 +239,13 @@ def cmd_dashboard(ctx: click.Context) -> None:
     settings = ctx.obj["settings"]
     init_db(settings)
     app = create_app(settings)
+    if settings.dashboard.auth_enabled:
+        click.echo(f"Dashboard token: {settings.dashboard_token()}")
+        click.echo("  (also stored at ~/.job-agent/dashboard_token)")
     app.run(
         host=settings.dashboard.host,
         port=settings.dashboard.port,
-        debug=True,
+        debug=settings.dashboard.debug,
     )
 
 
@@ -302,8 +333,8 @@ def cmd_bot_setup(ctx: click.Context) -> None:
         chat_id = click.prompt("  Your chat ID")
 
         click.echo("\n  Add these to your .env file:")
-        click.echo(f"    TELEGRAM_BOT_TOKEN={token}")
-        click.echo(f"    TELEGRAM_CHAT_ID={chat_id}")
+        click.echo(f"    JOB_AGENT_TELEGRAM_BOT_TOKEN={token}")
+        click.echo(f"    JOB_AGENT_TELEGRAM_CHAT_ID={chat_id}")
 
         env_path = Path(".env")
         if click.confirm("\n  Write to .env automatically?", default=True):
@@ -312,11 +343,11 @@ def cmd_bot_setup(ctx: click.Context) -> None:
                 existing = env_path.read_text()
                 for line in existing.splitlines():
                     if not line.startswith(
-                        ("TELEGRAM_BOT_TOKEN=", "TELEGRAM_CHAT_ID=")
+                        ("JOB_AGENT_TELEGRAM_BOT_TOKEN=", "JOB_AGENT_TELEGRAM_CHAT_ID=")
                     ):
                         lines.append(line)
-            lines.append(f"TELEGRAM_BOT_TOKEN={token}")
-            lines.append(f"TELEGRAM_CHAT_ID={chat_id}")
+            lines.append(f"JOB_AGENT_TELEGRAM_BOT_TOKEN={token}")
+            lines.append(f"JOB_AGENT_TELEGRAM_CHAT_ID={chat_id}")
             env_path.write_text("\n".join(lines) + "\n")
             click.echo("  Saved to .env\n")
         click.echo("  Start with: job-agent bot telegram\n")
@@ -337,9 +368,9 @@ def cmd_bot_setup(ctx: click.Context) -> None:
         pub_key = click.prompt("  Public Key")
 
         click.echo("\n  Add these to your .env file:")
-        click.echo(f"    DISCORD_BOT_TOKEN={bot_token}")
-        click.echo(f"    DISCORD_APPLICATION_ID={app_id}")
-        click.echo(f"    DISCORD_PUBLIC_KEY={pub_key}")
+        click.echo(f"    JOB_AGENT_DISCORD_BOT_TOKEN={bot_token}")
+        click.echo(f"    JOB_AGENT_DISCORD_APPLICATION_ID={app_id}")
+        click.echo(f"    JOB_AGENT_DISCORD_PUBLIC_KEY={pub_key}")
 
         env_path = Path(".env")
         if click.confirm("\n  Write to .env automatically?", default=True):
@@ -349,15 +380,15 @@ def cmd_bot_setup(ctx: click.Context) -> None:
                 for line in existing.splitlines():
                     if not line.startswith(
                         (
-                            "DISCORD_BOT_TOKEN=",
-                            "DISCORD_APPLICATION_ID=",
-                            "DISCORD_PUBLIC_KEY=",
+                            "JOB_AGENT_DISCORD_BOT_TOKEN=",
+                            "JOB_AGENT_DISCORD_APPLICATION_ID=",
+                            "JOB_AGENT_DISCORD_PUBLIC_KEY=",
                         )
                     ):
                         lines.append(line)
-            lines.append(f"DISCORD_BOT_TOKEN={bot_token}")
-            lines.append(f"DISCORD_APPLICATION_ID={app_id}")
-            lines.append(f"DISCORD_PUBLIC_KEY={pub_key}")
+            lines.append(f"JOB_AGENT_DISCORD_BOT_TOKEN={bot_token}")
+            lines.append(f"JOB_AGENT_DISCORD_APPLICATION_ID={app_id}")
+            lines.append(f"JOB_AGENT_DISCORD_PUBLIC_KEY={pub_key}")
             env_path.write_text("\n".join(lines) + "\n")
             click.echo("  Saved to .env\n")
 
@@ -438,13 +469,256 @@ def cmd_setup(ctx: click.Context) -> None:
         ctx.invoke(cmd_bot_setup)
 
     click.echo("\nSetup complete! Next steps:")
+    click.echo("  1. Edit config/templates/candidate_profile.md (your verified facts)")
     click.echo(
-        "  1. Create a profile: cp config/profiles/example.yaml config/profiles/myprofile.yaml"
+        "  2. Edit config/templates/*.md (cover letter, email, resume templates)"
     )
-    click.echo("  2. Edit the profile with your preferences")
-    click.echo("  3. Add your master resume to config/resumes/master.md")
-    click.echo("  4. Run: job-agent run --profile config/profiles/myprofile.yaml")
-    click.echo("  5. Or start the dashboard: job-agent dashboard")
+    click.echo("  3. Review config/profiles/aditya.yaml (search profile)")
+    click.echo("  4. Run: job-agent content check")
+    click.echo(
+        "  5. Run: job-agent run --profile config/profiles/aditya.yaml --once --dry-run"
+    )
+    click.echo(
+        "  6. Review jobs in the sheet: job-agent sheet template && job-agent sheet push"
+    )
+    click.echo("  See docs/TEMPLATES.md, docs/SPREADSHEET.md and docs/COVERAGE.md")
+
+
+@cli.group("content")
+@click.pass_context
+def cmd_content(ctx: click.Context) -> None:
+    """Inspect and preview the human-editable document templates."""
+    pass
+
+
+@cmd_content.command("check")
+@click.pass_context
+def cmd_content_check(ctx: click.Context) -> None:
+    """Validate the candidate profile and every Markdown template."""
+    from job_agent.content.candidate import load_candidate_profile
+    from job_agent.content.templates import load_template_set
+
+    settings = ctx.obj["settings"]
+    profile_path = settings.resolve_path(settings.content.candidate_profile)
+    candidate = load_candidate_profile(profile_path)
+    templates = load_template_set(settings.resolve_path(settings.content.templates_dir))
+    click.echo(f"Candidate : {candidate.name} <{candidate.email}>")
+    click.echo(f"Facts     : {len(candidate.facts)} verified claims")
+    click.echo(
+        f"Roles     : {len(candidate.roles)}  Projects: {len(candidate.projects)}"
+    )
+    click.echo(f"Profile   : {profile_path}")
+    click.echo(f"Templates : {templates.directory}")
+    for name in (
+        "resume_master",
+        "cover_letter",
+        "email_apply",
+        "connection_note",
+        "gig_profile",
+    ):
+        click.echo(f"  {'OK ' if templates.has(name) else 'MISSING '}{name}.md")
+    click.echo(f"Documents : {settings.documents_dir}")
+
+
+@cmd_content.command("preview")
+@click.option(
+    "--job-id", type=int, default=None, help="Preview for a job already in the DB."
+)
+@click.option("--title", default="Design Engineer", help="Fallback job title.")
+@click.option("--company", default="Example Co", help="Fallback company.")
+@click.option("--description", default="", help="Fallback job description text.")
+@click.pass_context
+def cmd_content_preview(ctx, job_id, title, company, description) -> None:
+    """Render grounded documents for a job without sending anything."""
+    from job_agent.content.candidate import load_candidate_profile
+    from job_agent.content.generator import generate_documents, save_documents
+    from job_agent.content.templates import load_template_set
+    from job_agent.db.repository import JobRepository
+    from job_agent.platforms.base import JobPosting
+
+    settings = ctx.obj["settings"]
+    posting = JobPosting(
+        external_id="preview",
+        platform=Platform.OTHER,
+        title=title,
+        company=company,
+        description=description or "",
+        employment_type="part_time",
+        remote=True,
+    )
+    if job_id:
+        session = get_session(settings)
+        try:
+            job = JobRepository(session).get_by_id(job_id)
+            if not job:
+                raise click.ClickException(f"Job {job_id} not found")
+            posting = JobPosting(
+                external_id=job.external_id,
+                platform=job.platform,
+                title=job.title,
+                company=job.company,
+                description=job.description or "",
+                url=job.url or "",
+                location=job.location or "",
+                employment_type=job.employment_type or "",
+                remote=bool(job.remote),
+            )
+        finally:
+            session.close()
+
+    candidate = load_candidate_profile(
+        settings.resolve_path(settings.content.candidate_profile)
+    )
+    templates = load_template_set(settings.resolve_path(settings.content.templates_dir))
+    docs = generate_documents(
+        posting=posting,
+        profile={},
+        candidate=candidate,
+        template_set=templates,
+        ai_client=None,
+        prompt_version=settings.content.prompt_version,
+    )
+    paths = save_documents(docs, settings.documents_dir, f"preview_{posting.company}")
+    for key, path in paths.items():
+        click.echo(f"{key}: {path}")
+    if docs.warnings:
+        click.echo("Grounding warnings: " + "; ".join(docs.warnings))
+
+
+@cli.command("feeds")
+@click.option("--query", "-q", multiple=True, help="Search keywords (repeatable).")
+@click.option("--location", "-l", multiple=True, help="Locations (repeatable).")
+@click.option("--limit", "-n", default=50, help="Max results.")
+@click.option(
+    "--profile",
+    "-p",
+    default="config/profiles/aditya.yaml",
+    help="Profile whose part-time/remote filters should be applied.",
+)
+@click.pass_context
+def cmd_feeds(ctx, query, location, limit, profile) -> None:
+    """Fast discovery from structured public job feeds."""
+    from job_agent.config import load_profile
+    from job_agent.discovery.feeds import FeedHub, load_feed_specs
+    from job_agent.matching.filters import build_filters
+
+    settings = ctx.obj["settings"]
+    specs = load_feed_specs(settings.resolve_path(settings.feeds.config_path))
+    hub = FeedHub(
+        specs,
+        timeout=settings.feeds.timeout,
+        max_workers=settings.feeds.max_workers,
+    )
+    profile_data = {}
+    profile_path = Path(profile)
+    if profile_path.exists():
+        profile_data = load_profile(profile_path)
+    queries = (
+        list(query)
+        or profile_data.get("search", {}).get("keywords")
+        or [
+            "frontend",
+            "design engineer",
+        ]
+    )
+    locations = list(location) or profile_data.get("search", {}).get("locations") or []
+    results = hub.discover(
+        list(queries), list(locations), limit=limit, filters=build_filters(profile_data)
+    )
+    click.echo(f"Found {len(results)} postings from {len(hub.results())} feeds")
+    for j in results[:25]:
+        click.echo(f"  [{j.platform.value}] {j.title} @ {j.company} — {j.url}")
+
+
+@cli.group("gigs")
+@click.pass_context
+def cmd_gigs(ctx: click.Context) -> None:
+    """AI-training / expert-network opportunities."""
+    pass
+
+
+@cmd_gigs.command("refresh")
+@click.pass_context
+def cmd_gigs_refresh(ctx: click.Context) -> None:
+    """Fetch current gig listings and upsert them into the database."""
+    from job_agent.gigs.service import GigService
+
+    settings = ctx.obj["settings"]
+    init_db(settings)
+    session = get_session(settings)
+    try:
+        service = GigService(settings, session)
+        counts = service.refresh()
+        click.echo(f"Gigs: {counts}")
+    finally:
+        session.close()
+
+
+@cmd_gigs.command("list")
+@click.option("--limit", "-n", default=40, help="Max rows to show.")
+@click.pass_context
+def cmd_gigs_list(ctx: click.Context, limit: int) -> None:
+    """List eligible gig opportunities from the local database."""
+    from sqlalchemy import select
+
+    from job_agent.db.models import GigOpportunity, GigStatus
+
+    settings = ctx.obj["settings"]
+    init_db(settings)
+    session = get_session(settings)
+    try:
+        wanted = (
+            GigStatus.ELIGIBLE,
+            GigStatus.APPLIED,
+            GigStatus.ASSESSMENT,
+            GigStatus.ACTIVE,
+        )
+        rows = list(
+            session.scalars(
+                select(GigOpportunity)
+                .where(GigOpportunity.status.in_(wanted))
+                .order_by(GigOpportunity.pay_max.desc().nullslast())
+                .limit(limit)
+            ).all()
+        )
+        if not rows:
+            click.echo("No eligible gigs yet. Run: job-agent gigs refresh")
+            return
+        # Alignerr publishes city-targeted variants of the same role; show one
+        # representative row per (network, title) while keeping all DB rows.
+        seen_titles: set[tuple[str, str]] = set()
+        unique_rows = []
+        for gig in rows:
+            key = (gig.network, gig.title)
+            if key in seen_titles:
+                continue
+            seen_titles.add(key)
+            unique_rows.append(gig)
+        click.echo(
+            f"{len(unique_rows)} eligible gig(s) ({len(rows)} listing variants):"
+        )
+        for gig in unique_rows[:limit]:
+            rate = (
+                f"{gig.pay_min:g}-{gig.pay_max:g} {gig.currency}/{gig.pay_period}"
+                if gig.pay_min
+                else "rate n/a"
+            )
+            click.echo(
+                f"  [{gig.network}/{gig.track}] {gig.title} — {rate} — {gig.url}"
+            )
+    finally:
+        session.close()
+
+
+# Spreadsheet commands live in their own module so they can be composed in tests.
+try:
+    from job_agent.cli.sheet import build_cli_group as _build_sheet_group
+
+    cli.add_command(_build_sheet_group())
+except ImportError as _exc:  # pragma: no cover - optional during partial installs
+    import sys as _sys
+
+    print(f"warning: spreadsheet CLI unavailable: {_exc}", file=_sys.stderr)
 
 
 if __name__ == "__main__":

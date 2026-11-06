@@ -27,8 +27,11 @@ Thumbs.db
 # Project-specific
 *.db
 browser_state/
+.workbuddy-ai/
 config/profiles/*.yaml
 !config/profiles/example.yaml
+# Keep the user's own editable profile in version control so it is not lost.
+!config/profiles/aditya.yaml
 config/resumes/
 
 # Scripts - personal/debug

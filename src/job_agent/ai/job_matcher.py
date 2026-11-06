@@ -14,6 +14,24 @@ from job_agent.utils.logging import get_logger
 
 log = get_logger(__name__)
 
+
+def _constraints_text(search: dict) -> str:
+    """Human-readable part-time / remote / timezone constraints for the prompt."""
+    filters = search.get("filters") or {}
+    parts: list[str] = []
+    if search.get("remote_preference"):
+        parts.append(f"remote preference: {search['remote_preference']}")
+    if filters.get("employment_types"):
+        parts.append("employment types: " + ", ".join(filters["employment_types"]))
+    if filters.get("max_hours_per_week"):
+        parts.append(f"max {filters['max_hours_per_week']} h/week")
+    if filters.get("min_hourly_rate"):
+        parts.append(f"min rate {filters['min_hourly_rate']}")
+    if filters.get("timezone_alignment"):
+        parts.append(f"timezone: {filters['timezone_alignment']}")
+    return "; ".join(parts) or "none stated"
+
+
 _NOISE_WORDS = frozenset(
     {
         "a",
@@ -183,6 +201,10 @@ class JobMatcher:
             salary_minimum=search.get("salary_minimum", "Not specified"),
             excluded_companies=exclusions.get("companies", []),
             excluded_keywords=exclusions.get("keywords", []),
+            employment_type=getattr(job, "employment_type", "") or "not stated",
+            remote_policy=getattr(job, "remote_policy", "") or "not stated",
+            timezone=getattr(job, "timezone", "") or "not stated",
+            candidate_constraints=_constraints_text(search),
         )
 
         try:
@@ -194,8 +216,9 @@ class JobMatcher:
             return self._parse_response(response)
         except Exception as e:
             log.error("match_failed", job_id=job.external_id, error=str(e))
+            # A failed match must never look like a neutral, queueable score.
             return MatchScore(
-                score=0.5,
+                score=0.0,
                 reasoning=f"Matching failed: {e}",
                 red_flags=["match_error"],
             )

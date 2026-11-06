@@ -30,6 +30,23 @@ class Platform(PyEnum):
     ZIPRECRUITER = "ziprecruiter"
     DICE = "dice"
     WELLFOUND = "wellfound"
+    # Structured feeds / job boards (Phase 3)
+    REMOTIVE = "remotive"
+    REMOTEOK = "remoteok"
+    ARBEITNOW = "arbeitnow"
+    GREENHOUSE = "greenhouse"
+    LEVER = "lever"
+    ASHBY = "ashby"
+    JOBSTREET = "jobstreet"
+    GLINTS = "glints"
+    KALIBRR = "kalibrr"
+    SEEK = "seek"
+    # AI-training / expert networks
+    ALIGNERR = "alignerr"
+    OUTLIER = "outlier"
+    DATAANNOTATION = "dataannotation"
+    MERCOR = "mercor"
+    OTHER = "other"
 
 
 class JobStatus(PyEnum):
@@ -42,14 +59,28 @@ class JobStatus(PyEnum):
     APPLIED = "applied"
     APPLY_FAILED = "apply_failed"
     SKIPPED = "skipped"
+    FILTERED = "filtered"
+    PENDING_HUMAN = "pending_human"
 
 
 class ApplicationStatus(PyEnum):
     PENDING = "pending"
     SUBMITTED = "submitted"
     CONFIRMED = "confirmed"
+    UNVERIFIED = "unverified"
+    PENDING_HUMAN = "pending_human"
     FAILED = "failed"
     WITHDRAWN = "withdrawn"
+
+
+class GigStatus(PyEnum):
+    DISCOVERED = "discovered"
+    ELIGIBLE = "eligible"
+    APPLIED = "applied"
+    ASSESSMENT = "assessment"
+    ACTIVE = "active"
+    REJECTED = "rejected"
+    NOT_ELIGIBLE = "not_eligible"
 
 
 class OutreachStatus(PyEnum):
@@ -87,8 +118,16 @@ class Job(Base):
     salary: Mapped[str | None] = mapped_column(String(255), nullable=True)
     easy_apply: Mapped[bool] = mapped_column(Boolean, default=False)
     remote: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Structured employment metadata (Phase 3). Empty string means "unknown".
+    employment_type: Mapped[str] = mapped_column(String(64), default="", index=True)
+    remote_policy: Mapped[str] = mapped_column(String(64), default="")
+    timezone: Mapped[str] = mapped_column(String(64), default="")
+    hours_per_week: Mapped[float | None] = mapped_column(Float, nullable=True)
+    currency: Mapped[str] = mapped_column(String(16), default="")
+    salary_period: Mapped[str] = mapped_column(String(32), default="")
+    source: Mapped[str] = mapped_column(String(64), default="")
     status: Mapped[JobStatus] = mapped_column(
-        Enum(JobStatus), default=JobStatus.DISCOVERED
+        Enum(JobStatus), default=JobStatus.DISCOVERED, index=True
     )
     bookmarked: Mapped[bool] = mapped_column(Boolean, default=False)
     profile_name: Mapped[str] = mapped_column(String(255), default="")
@@ -142,7 +181,14 @@ class Application(Base):
     cover_letter_path: Mapped[str] = mapped_column(String(1024), default="")
     screenshot_path: Mapped[str] = mapped_column(String(1024), default="")
     error_message: Mapped[str] = mapped_column(Text, default="")
-    applied_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    applied_at: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True, index=True
+    )
+    verification_status: Mapped[str] = mapped_column(String(32), default="")
+    verification_note: Mapped[str] = mapped_column(Text, default="")
+    approval_source: Mapped[str] = mapped_column(String(64), default="")
+    prompt_version: Mapped[str] = mapped_column(String(64), default="")
+    documents_manifest: Mapped[str] = mapped_column(Text, default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=_utcnow, onupdate=_utcnow
@@ -233,8 +279,49 @@ class AgentRun(Base):
     jobs_queued: Mapped[int] = mapped_column(Integer, default=0)
     jobs_skipped: Mapped[int] = mapped_column(Integer, default=0)
     error_message: Mapped[str] = mapped_column(Text, default="")
-    started_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+    # Observability: stage timings (JSON), AI calls and estimated cost.
+    timings: Mapped[str] = mapped_column(Text, default="")
+    ai_calls: Mapped[int] = mapped_column(Integer, default=0)
+    estimated_cost_usd: Mapped[float] = mapped_column(Float, default=0.0)
+    started_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, index=True)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     def __repr__(self) -> str:
         return f"<AgentRun {self.id} ({self.status.value})>"
+
+
+class GigOpportunity(Base):
+    """AI-training / expert-network gigs (Alignerr, Outlier, ...).
+
+    These are not resume applications: onboarding is account + assessment,
+    pay is hourly/task based, and availability is country dependent.
+    """
+
+    __tablename__ = "gig_opportunities"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    external_id: Mapped[str] = mapped_column(String(255), index=True)
+    network: Mapped[str] = mapped_column(String(64), index=True)
+    title: Mapped[str] = mapped_column(String(500))
+    track: Mapped[str] = mapped_column(String(128), default="")
+    description: Mapped[str] = mapped_column(Text, default="")
+    url: Mapped[str] = mapped_column(String(2048), default="")
+    location: Mapped[str] = mapped_column(String(255), default="")
+    remote: Mapped[bool] = mapped_column(Boolean, default=True)
+    pay_min: Mapped[float | None] = mapped_column(Float, nullable=True)
+    pay_max: Mapped[float | None] = mapped_column(Float, nullable=True)
+    currency: Mapped[str] = mapped_column(String(16), default="USD")
+    pay_period: Mapped[str] = mapped_column(String(32), default="hour")
+    employment_type: Mapped[str] = mapped_column(String(64), default="part_time")
+    eligibility: Mapped[str] = mapped_column(Text, default="")
+    status: Mapped[GigStatus] = mapped_column(
+        Enum(GigStatus), default=GigStatus.DISCOVERED
+    )
+    notes: Mapped[str] = mapped_column(Text, default="")
+    discovered_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=_utcnow, onupdate=_utcnow
+    )
+
+    def __repr__(self) -> str:
+        return f"<GigOpportunity {self.id}: {self.title} @ {self.network}>"

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign in · Job Agent</title>
+    <style>
+        :root { color-scheme: dark; }
+        body { margin: 0; min-height: 100vh; display: flex; align-items: center;
+               justify-content: center; background: #111318; color: #e8eaf0;
+               font: 14px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+        .card { width: 380px; padding: 32px; border-radius: 14px; background: #1a1d25;
+                border: 1px solid rgba(255,255,255,.09); }
+        h1 { margin: 0 0 6px; font-size: 18px; font-weight: 500; }
+        p { margin: 0 0 22px; color: #9ba3b4; font-size: 13px; }
+        label { display: block; margin-bottom: 8px; font-size: 12px; color: #9ba3b4; }
+        input { width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 8px;
+                border: 1px solid rgba(255,255,255,.14); background: #12151b; color: #e8eaf0;
+                font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; }
+        button { width: 100%; margin-top: 16px; padding: 10px; border-radius: 8px; cursor: pointer;
+                 border: 1px solid rgba(255,255,255,.18); background: #2b4d8b; color: #fff;
+                 font-size: 13px; font-weight: 500; }
+        .error { margin-top: 14px; color: #f09595; font-size: 12px; }
+        .hint { margin-top: 18px; font-size: 11px; color: #6f7788; }
+        code { color: #b5d4f4; }
+    </style>
+</head>
+<body>
+    <form class="card" method="post">
+        <h1>Job Agent</h1>
+        <p>Sign in to open the dashboard.</p>
+        <label for="token">Dashboard token</label>
+        <input id="token" name="token" type="password" autocomplete="current-password" autofocus required>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_enabled else '' }}">
+        <button type="submit">Sign in</button>
+        {% if error %}<div class="error">{{ error }}</div>{% endif %}
+        <div class="hint">
+            The token is generated on first run at
+            <code>~/.job-agent/dashboard_token</code>, or set
+            <code>JOB_AGENT_DASHBOARD__AUTH_TOKEN</code> yourself.
+        </div>
+    </form>
+</body>
+</html>

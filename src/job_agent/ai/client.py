@@ -40,6 +40,44 @@ API_URLS = {
 }
 
 
+class NullAIClient:
+    """Degraded stand-in used when no provider key is configured.
+
+    Discovery, filtering, the spreadsheet and dry-run must still work without
+    an API key. Matching calls fail closed (score 0.0) instead of crashing.
+    """
+
+    provider = "none"
+    model = "none"
+    call_count = 0
+    cache_hits = 0
+    estimated_cost_usd = 0.0
+
+    def complete(self, *args, **kwargs) -> str:
+        raise RuntimeError(
+            "No AI provider configured. Set JOB_AGENT_GEMINI_API_KEY (or another "
+            "provider key) to enable matching and generated documents."
+        )
+
+    def usage(self) -> dict:
+        return {
+            "calls": 0,
+            "cache_hits": 0,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "estimated_cost_usd": 0.0,
+        }
+
+
+def build_ai_client(settings: Settings) -> "AIClient | NullAIClient":
+    """Return a real client when configured, else a safe degraded client."""
+    try:
+        return AIClient(settings)
+    except ValueError as exc:
+        log.warning("ai_unavailable_degraded_mode", error=str(exc)[:200])
+        return NullAIClient()
+
+
 class AIClient:
     """Multi-provider AI client with retry and error handling.
 
@@ -59,9 +97,20 @@ class AIClient:
         self.model = settings.matching.model or DEFAULT_MODELS.get(
             self.provider, DEFAULT_MODELS[PROVIDER_GEMINI]
         )
-        self._http = httpx.Client(timeout=60)
+        self._http = httpx.Client(
+            timeout=getattr(settings.agent, "ai_request_timeout", 60) or 60
+        )
         self._last_call_time: float = 0
         self.call_count: int = 0
+        # Response cache, token accounting and a rough cost estimate.
+        self._cache_enabled: bool = bool(
+            getattr(settings.agent, "cache_ai_responses", True)
+        )
+        self._cache: dict[str, str] = {}
+        self.cache_hits: int = 0
+        self.input_tokens: int = 0
+        self.output_tokens: int = 0
+        self.estimated_cost_usd: float = 0.0
         # Groq free tier: 30 req/min + daily token limits. Space calls to avoid 429s.
         self._base_call_interval: float = 4.0 if self.provider == PROVIDER_GROQ else 0.0
         self._min_call_interval: float = self._base_call_interval
@@ -136,7 +185,17 @@ class AIClient:
         temperature: float = 0.3,
         retries: int = 3,
     ) -> str:
-        """Send a completion request with retry logic."""
+        """Send a completion request with retry logic and response caching."""
+        import hashlib
+
+        cache_key = hashlib.sha256(
+            f"{self.provider}|{self.model}|{system}|{temperature}|{max_tokens}|{prompt}".encode()
+        ).hexdigest()
+        if self._cache_enabled and cache_key in self._cache:
+            self.cache_hits += 1
+            log.debug("ai_cache_hit", provider=self.provider)
+            return self._cache[cache_key]
+
         # Throttle requests to avoid rate limits on free tiers
         if self._min_call_interval > 0:
             elapsed = time.time() - self._last_call_time
@@ -181,6 +240,9 @@ class AIClient:
                 self._last_call_time = time.time()
                 self.call_count += 1
                 self._consecutive_429s = 0
+                self._record_usage(prompt, system, result)
+                if self._cache_enabled:
+                    self._cache[cache_key] = result
                 if self._min_call_interval > self._base_call_interval:
                     self._min_call_interval = max(
                         self._base_call_interval,
@@ -238,6 +300,36 @@ class AIClient:
                 self.model = original_model
 
         raise RuntimeError("AI completion failed after retries")
+
+    # Rough USD per 1M tokens, used only for run-level budget guardrails.
+    _PRICE_PER_M = {
+        "gemini": (0.10, 0.40),
+        "groq": (0.05, 0.08),
+        "openrouter": (0.10, 0.40),
+        "anthropic": (3.00, 15.00),
+        "ollama": (0.0, 0.0),
+    }
+
+    def _record_usage(self, prompt: str, system: str, result: str) -> None:
+        """Track approximate token usage so a run can enforce a cost ceiling."""
+        in_tokens = max(1, (len(prompt) + len(system)) // 4)
+        out_tokens = max(1, len(result) // 4)
+        self.input_tokens += in_tokens
+        self.output_tokens += out_tokens
+        in_price, out_price = self._PRICE_PER_M.get(self.provider, (0.10, 0.40))
+        self.estimated_cost_usd += (
+            in_tokens * in_price + out_tokens * out_price
+        ) / 1_000_000
+
+    def usage(self) -> dict:
+        """Snapshot of calls, cache hits, tokens and estimated cost."""
+        return {
+            "calls": self.call_count,
+            "cache_hits": self.cache_hits,
+            "input_tokens": self.input_tokens,
+            "output_tokens": self.output_tokens,
+            "estimated_cost_usd": round(self.estimated_cost_usd, 6),
+        }
 
     @staticmethod
     def _classify_error(err_str: str) -> str:
