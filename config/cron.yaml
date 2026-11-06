@@ -1,0 +1,33 @@
+# Cron-run overrides: no ego(lite), no Mac dependency.
+# Used by ~/apps/job-agent/run-cron.sh every 6 hours.
+# ego-driven boards need the Mac's logged-in browser, so they are off here;
+# the headless playwright lanes + HTTP feeds carry the run instead.
+ego:
+  enabled: false
+  host: ""
+  user: ""
+
+platforms:
+  linkedin:
+    enabled: false
+  wellfound:
+    enabled: false
+  indeed:
+    enabled: true
+    use_cdp: false
+    use_camoufox: false
+  glassdoor:
+    enabled: false
+  ziprecruiter:
+    enabled: true
+  dice:
+    enabled: true
+  linkedin_guest: {}
+
+browser:
+  headless: true
+
+# Job-agent's own jobs/gigs/applications tabs are not wanted: results go into
+# the 'hermes' research tab (scripts/push_hermes_tab.py) instead.
+sheets:
+  enabled: false
