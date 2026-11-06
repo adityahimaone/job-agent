@@ -12,17 +12,23 @@ search:
   # Job-title strings the agent searches for on each platform.
   keywords:
     - "Design Engineer"
-    - "Frontend Engineer React"
+    - "Frontend Engineer"
+    - "Frontend Developer"
+    - "React Developer"
+    - "UI Engineer"
     - "Design Systems Engineer"
+    - "Product Design Engineer"
     - "Frontend Contract"
+    - "Web Developer"
     - "AI coding evaluation"
   # Locations to search. "Remote" plus a couple of regions is usually enough.
   locations:
     - "Remote"
     - "Indonesia"
     - "APAC"
+    - "Worldwide"
   # onsite | hybrid | remote_only | remote_first
-  remote_preference: "remote_only"
+  remote_preference: "remote_first"
   # Allowed engagement types. Must match the candidate's constraints.
   employment_types: [part_time, contract, freelance, full_time]
   # entry | mid | senior | lead
@@ -33,17 +39,18 @@ search:
 # Hard filters applied to discovered postings.
 filters:
   employment_types: [part_time, contract, freelance, full_time]
-  remote_only: true
+  # Loosened 2026-11-06: more boards surface, JEV + review queue do the vetting.
+  remote_only: false
   # Acceptable timezone overlap with the candidate (Jakarta, GMT+7).
-  timezone_alignment: "GMT+7 ±4"
+  timezone_alignment: "GMT+7 ±6"
   # Reject gigs paying below this hourly rate (USD).
-  min_hourly_rate: 30
-  # Part-time target: no more than this many hours per week.
-  max_hours_per_week: 20
+  min_hourly_rate: 20
+  # No hours/week cap — part-time is preferred, not required.
   # At least one of these must appear in the title/description. This is what
   # stops unrelated "writer" / "sales" roles from reaching the review queue.
   # Add or remove terms to widen or tighten the search.
   include_keywords:
+    - "design engineer"
     - "react"
     - "typescript"
     - "javascript"
@@ -63,9 +70,15 @@ filters:
   exclude_keywords:
     - "unpaid"
     - "internship"
-    - "junior"
-    - "onsite"
     - "relocation required"
+    # Electrical/mechanical/hardware "design engineer" noise.
+    - "electrical"
+    - "mechanical"
+    - "hardware"
+    - "firmware"
+    - "civil"
+    - "hvac"
+    - "pcb"
   # Companies to skip entirely (add exact names as needed).
   exclude_companies: []
 
