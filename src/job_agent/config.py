@@ -226,6 +226,8 @@ class Settings(BaseSettings):
     gemini_api_key: str = ""
     groq_api_key: str = ""
     openrouter_api_key: str = ""
+    # OpenAI-compatible gateway override (9router, LiteLLM, etc.)
+    openrouter_base_url: str = "https://openrouter.ai/api/v1"
 
     flask_secret_key: str = "change-me"
     database_url: str = ""

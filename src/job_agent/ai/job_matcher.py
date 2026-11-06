@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from job_agent.ai.client import AIClient
+from job_agent.ai.jev import jev_enabled, score_fit
 from job_agent.ai.prompts import JOB_MATCH_TEMPLATE
 from job_agent.platforms.base import JobPosting
 from job_agent.utils.logging import get_logger
@@ -184,10 +185,37 @@ class JobMatcher:
                 red_flags=["no_skill_overlap"],
             )
 
+        # JEV primary when configured: structured 0-1 fit, no chat cost.
+        if jev_enabled():
+            skills = profile.get("skills", {})
+            search = profile.get("search", {})
+            employment_type = getattr(job, "employment_type", "") or ""
+            remote_policy = getattr(job, "remote_policy", "") or ""
+            state = (
+                f"Job: {job.title} at {job.company}; location: {job.location}; "
+                f"type: {employment_type or 'not stated'}; remote: "
+                f"{remote_policy or 'not stated'}.\n"
+                f"Description: {job.description[:6000]}\n"
+                f"Candidate: {profile.get('name', '')}; required skills: "
+                f"{', '.join(skills.get('required', []))}; preferred: "
+                f"{', '.join(skills.get('preferred', []))}; experience: "
+                f"{search.get('experience_level', '')}. "
+                f"Constraints: {_constraints_text(search)}."
+            )
+            fit = score_fit(state)
+            if fit is not None:
+                return MatchScore(
+                    score=fit,
+                    reasoning=f"JEV fit score {fit:.2f} (typesafe jev, structured).",
+                    role_fit=(
+                        "strong" if fit >= 0.90 else "possible" if fit >= 0.70 else "none"
+                    ),
+                    red_flags=["jev_scored"] if fit >= 0.70 else ["jev_low_fit"],
+                )
+
         # Build prompt
         skills = profile.get("skills", {})
         search = profile.get("search", {})
-
         prompt = JOB_MATCH_TEMPLATE.render(
             job_title=job.title,
             company=job.company,

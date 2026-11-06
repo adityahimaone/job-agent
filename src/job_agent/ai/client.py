@@ -5,6 +5,7 @@ Supports: Anthropic Claude, Google Gemini, Groq, OpenRouter, Ollama (local).
 
 from __future__ import annotations
 
+import json
 import time
 from typing import Any
 
@@ -14,6 +15,35 @@ from job_agent.config import Settings
 from job_agent.utils.logging import get_logger
 
 log = get_logger(__name__)
+
+
+def _parse_completion(raw: str) -> dict:
+    """Parse an OpenAI-compatible completion body, tolerating 9router's SSE
+    chunk stream and concatenated JSON objects (resp.json() dies on both)."""
+    raw = (raw or "").strip()
+    if raw.startswith("data:"):
+        last = None
+        for line in raw.splitlines():
+            line = line.strip()
+            if not line.startswith("data:"):
+                continue
+            chunk = line[5:].strip()
+            if not chunk or chunk == "[DONE]":
+                continue
+            try:
+                obj = json.loads(chunk)
+            except json.JSONDecodeError:
+                continue
+            if obj.get("choices"):
+                last = obj
+        if last is not None:
+            return last
+        raise RuntimeError("API returned no completion chunks")
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        obj, _ = json.JSONDecoder().raw_decode(raw)
+        return obj
 
 # Provider constants
 PROVIDER_ANTHROPIC = "anthropic"
@@ -224,7 +254,8 @@ class AIClient:
                     )
                 elif self.provider == PROVIDER_OPENROUTER:
                     result = self._complete_openai_compat(
-                        API_URLS[PROVIDER_OPENROUTER],
+                        self.settings.openrouter_base_url
+                        or API_URLS[PROVIDER_OPENROUTER],
                         self.settings.openrouter_api_key,
                         prompt,
                         system,
@@ -459,7 +490,7 @@ class AIClient:
 
         resp = self._http.post(url, json=payload, headers=headers)
         resp.raise_for_status()
-        data = resp.json()
+        data = _parse_completion(resp.text)
 
         choices = data.get("choices")
         if not choices:

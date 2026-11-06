@@ -19,7 +19,7 @@ agent:
 matching:
   auto_apply_threshold: 0.90
   review_threshold: 0.70
-  model: ""
+  model: "agentic"
   max_ai_calls_per_run: 20          # deprecated, kept for compatibility
   max_match_calls_per_run: 40       # budget for scoring only
   max_generation_calls_per_run: 60  # budget for resumes / letters / emails
@@ -64,9 +64,10 @@ gigs:
 
 ego:
   # Drive the person's own ego(lite) browser instead of Playwright.
-  enabled: false
-  host: ""
-  user: ""
+  # Running on the VPS: reach the Mac's ego(lite) over ssh (Tailscale).
+  enabled: true
+  host: "100.75.2.78"
+  user: "adityahimawan"
   binary: ""                       # empty = auto-resolve Versions/Current
   timeout: 180
   task_space: "job-agent"
@@ -78,14 +79,14 @@ ego:
 platforms:
   linkedin:
     enabled: true
-    use_ego: false
+    use_ego: true
     max_requests_per_minute: 3
     max_applications_per_day: 25
     max_connections_per_day: 20
     session_duration_minutes: 45
     cooldown_minutes: 30
   indeed:
-    enabled: true
+    enabled: false
     max_requests_per_minute: 5
     max_applications_per_day: 40
     session_duration_minutes: 60
@@ -93,7 +94,7 @@ platforms:
     use_camoufox: false
     use_cdp: true
   glassdoor:
-    enabled: true
+    enabled: false
     max_requests_per_minute: 4
     max_applications_per_day: 30
     session_duration_minutes: 60
@@ -107,14 +108,14 @@ platforms:
     session_duration_minutes: 60
     cooldown_minutes: 20
   dice:
-    enabled: true
+    enabled: false
     max_requests_per_minute: 4
     max_applications_per_day: 35
     session_duration_minutes: 60
     cooldown_minutes: 20
   wellfound:
     enabled: true
-    use_ego: false
+    use_ego: true
     max_requests_per_minute: 3
     max_applications_per_day: 20
     session_duration_minutes: 45
