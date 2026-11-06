@@ -23,9 +23,22 @@ resume:
   # Cover letter tone
   cover_letter_tone: "professional"
 
+ego:
+  # Drive the person's own ego(lite) browser instead of Playwright.
+  enabled: false
+  # host/user of the machine running ego lite; empty = this machine
+  host: ""
+  user: ""
+  # empty = the versioned path inside ego lite.app
+  binary: ""
+  timeout: 180
+  task_space: "job-agent"
+  settle_ms: 2500
+
 platforms:
   linkedin:
     enabled: true
+    use_ego: false
     max_requests_per_minute: 3
     max_applications_per_day: 25
     max_connections_per_day: 20
@@ -61,6 +74,7 @@ platforms:
     cooldown_minutes: 20
   wellfound:
     enabled: true
+    use_ego: false
     max_requests_per_minute: 3
     max_applications_per_day: 20
     session_duration_minutes: 45

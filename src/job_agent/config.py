@@ -45,6 +45,7 @@ class PlatformConfig(BaseModel):
     max_connections_per_day: int = 0
     use_camoufox: bool | None = None
     use_cdp: bool | None = None
+    use_ego: bool = False
 
 
 class PlatformsConfig(BaseModel):
@@ -98,6 +99,18 @@ class BrowserConfig(BaseModel):
     cdp_url: str = "http://localhost:9222"
     viewport_width: int = 1920
     viewport_height: int = 1080
+
+
+class EgoConfig(BaseModel):
+    """ego(lite) browser bridge. `host` empty runs ego-browser locally."""
+
+    enabled: bool = False
+    host: str = ""
+    user: str = ""
+    binary: str = ""
+    timeout: int = 180
+    task_space: str = "job-agent"
+    settle_ms: int = 2500
 
 
 class EmailNotificationConfig(BaseModel):
@@ -191,6 +204,7 @@ class Settings(BaseSettings):
     resume: ResumeConfig = ResumeConfig()
     platforms: PlatformsConfig = PlatformsConfig()
     browser: BrowserConfig = BrowserConfig()
+    ego: EgoConfig = EgoConfig()
     notifications: NotificationsConfig = NotificationsConfig()
     dashboard: DashboardConfig = DashboardConfig()
 

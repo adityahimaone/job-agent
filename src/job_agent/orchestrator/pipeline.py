@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from contextlib import contextmanager
+
 from job_agent.ai.client import AIClient
 from job_agent.ai.cover_letter import CoverLetterGenerator
 from job_agent.ai.job_matcher import JobMatcher
@@ -35,6 +37,31 @@ from job_agent.utils.crypto import decrypt
 from job_agent.utils.logging import bind_contextvars, get_logger
 
 log = get_logger(__name__)
+
+
+def _ego_enabled(platform_name: str, settings: Settings) -> bool:
+    """True when this platform is driven through ego(lite) instead of Playwright."""
+    plat_cfg = getattr(settings.platforms, platform_name, None)
+    ego_cfg = getattr(settings, "ego", None)
+    return bool(plat_cfg and ego_cfg and plat_cfg.use_ego and ego_cfg.enabled)
+
+
+@contextmanager
+def open_driver(platform_name: str, settings: Settings):
+    """Yield a driver for the platform.
+
+    ego(lite) is a browser that already exists on the person's own machine, so no
+    BrowserManager is started for it.
+    """
+    if _ego_enabled(platform_name, settings):
+        from job_agent.platforms.ego.driver import EgoDriver
+
+        yield EgoDriver(settings, platform_name)
+        return
+
+    browser_opts = _resolve_browser_opts(platform_name, settings)
+    with BrowserManager(settings, **browser_opts) as browser:
+        yield get_platform_driver(platform_name, settings, browser)
 
 
 def _resolve_browser_opts(platform_name: str, settings: Settings) -> dict:
@@ -81,6 +108,11 @@ def _login_driver(
     profile: dict,
 ) -> bool:
     """Login the driver using stored credentials. Returns False if no credentials found."""
+    if getattr(driver, "requires_login", True) is False:
+        if hasattr(driver, "set_ai_context"):
+            driver.set_ai_context(ai_client, profile)
+        return True
+
     cred = CredentialRepository(session).get(Platform(platform_name))
     if not cred:
         log.warning("no_credentials", platform=platform_name)
@@ -163,15 +195,14 @@ def _process_approved_queue(
     for plat, jobs in by_platform.items():
         bind_contextvars(platform=plat)
         cred = CredentialRepository(session).get(Platform(plat))
-        if not cred:
+        if not cred and not _ego_enabled(plat, settings):
             log.warning("no_credentials_for_approved")
             continue
 
-        browser_opts = _resolve_browser_opts(plat, settings)
         try:
-            with BrowserManager(settings, **browser_opts) as browser:
-                driver = get_platform_driver(plat, settings, browser)
-                driver.login(cred.username, decrypt(cred.encrypted_password))
+            with open_driver(plat, settings) as driver:
+                if cred:
+                    driver.login(cred.username, decrypt(cred.encrypted_password))
                 if hasattr(driver, "set_ai_context"):
                     driver.set_ai_context(ai_client, profile)
 
@@ -269,17 +300,15 @@ def discover_jobs(
     job_repo = JobRepository(session)
 
     try:
-        browser_opts = _resolve_browser_opts(platform_name, settings)
-        with BrowserManager(settings, **browser_opts) as browser:
-            driver = get_platform_driver(platform_name, settings, browser)
-
+        with open_driver(platform_name, settings) as driver:
             cred = CredentialRepository(session).get(Platform(platform_name))
-            if not cred:
+            if not cred and not _ego_enabled(platform_name, settings):
                 raise RuntimeError(
                     f"No credentials for {platform_name}. Run: job-agent add-credential {platform_name}"
                 )
 
-            driver.login(cred.username, decrypt(cred.encrypted_password))
+            if cred:
+                driver.login(cred.username, decrypt(cred.encrypted_password))
 
             # Search
             postings = driver.search_jobs(query=query, location=location, limit=limit)
@@ -371,10 +400,8 @@ def run_pipeline(
 
     try:
         for plat in platforms_to_run:
-            browser_opts = _resolve_browser_opts(plat, settings)
-            with BrowserManager(settings, **browser_opts) as browser:
+            with open_driver(plat, settings) as driver:
                 bind_contextvars(platform=plat)
-                driver = get_platform_driver(plat, settings, browser)
 
                 if not _login_driver(driver, plat, session, ai_client, profile):
                     continue
@@ -550,15 +577,14 @@ def apply_approved(settings: Settings, profile_path: str = "") -> dict[str, int]
         for plat, jobs in by_platform.items():
             bind_contextvars(platform=plat)
             cred = CredentialRepository(session).get(Platform(plat))
-            if not cred:
+            if not cred and not _ego_enabled(plat, settings):
                 log.warning("no_credentials_for_approved", platform=plat)
                 continue
 
-            browser_opts = _resolve_browser_opts(plat, settings)
             try:
-                with BrowserManager(settings, **browser_opts) as browser:
-                    driver = get_platform_driver(plat, settings, browser)
-                    driver.login(cred.username, decrypt(cred.encrypted_password))
+                with open_driver(plat, settings) as driver:
+                    if cred:
+                        driver.login(cred.username, decrypt(cred.encrypted_password))
 
                     if profile and hasattr(driver, "set_ai_context"):
                         driver.set_ai_context(ai_client, profile)

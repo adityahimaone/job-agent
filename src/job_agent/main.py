@@ -158,6 +158,50 @@ def cmd_search(
         click.echo(f"  [{j.platform.value}] {j.title} @ {j.company} - {j.url}")
 
 
+@cli.command("ego")
+@click.argument("action", type=click.Choice(["doctor", "search"]))
+@click.option("--platform", "-P", default="linkedin", help="Platform to search.")
+@click.option("--query", "-q", default="", help="Search query.")
+@click.option("--location", "-l", default="", help="Location filter.")
+@click.option("--limit", "-n", default=10, help="Max results.")
+@click.pass_context
+def cmd_ego(ctx, action, platform, query, location, limit):
+    """Talk to ego(lite): prove the bridge, or run one search."""
+    from job_agent.platforms.ego.client import DEFAULT_BINARY, EgoClient, EgoError
+
+    settings = ctx.obj["settings"]
+    cfg = settings.ego
+    client = EgoClient(
+        host=cfg.host or None,
+        user=cfg.user,
+        binary=cfg.binary or DEFAULT_BINARY,
+        timeout=cfg.timeout,
+    )
+    try:
+        if action == "doctor":
+            click.echo(f"target: {client.target or 'local'}")
+            click.echo(f"binary: {client.binary}")
+            info = client.doctor()
+            click.echo(f"title : {info.get('title')}")
+            click.echo(f"url   : {info.get('url')}")
+            click.echo(f"space : {info.get('spaceId')}")
+            click.echo("ego bridge OK")
+            return
+        from job_agent.platforms.ego.discovery import EgoDiscovery
+
+        if not query:
+            raise click.UsageError("--query is required for search")
+        found = EgoDiscovery(client, platform, task_space=cfg.task_space, settle_ms=cfg.settle_ms).search(
+            query=query, location=location, limit=limit
+        )
+        click.echo(f"found {len(found)} postings")
+        for j in found:
+            click.echo(f"  {j.title} @ {j.company} - {j.url}")
+    except EgoError as exc:
+        click.echo(f"ego error: {exc}")
+        raise SystemExit(1)
+
+
 @cli.command("dashboard")
 @click.pass_context
 def cmd_dashboard(ctx: click.Context) -> None:
