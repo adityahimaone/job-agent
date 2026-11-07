@@ -42,6 +42,23 @@ def excluded(location: str | None) -> bool:
     return any(x in loc for x in excluded_locations)
 
 
+def work_mode(title: str | None, location: str | None,
+              remote: int | bool | None, policy: str | None) -> str:
+    """'Remote' / 'Hybrid' / 'WFO' from the stored fields, text scan as fallback."""
+    p = (policy or "").lower()
+    blob = f"{title or ''} {location or ''} {policy or ''}".lower()
+    if p in ("remote",) or remote in (1, True, "1", "true"):
+        return "Remote"
+    if p in ("hybrid",) or "hybrid" in blob or "wfh" in blob:
+        return "Hybrid"
+    if p in ("onsite", "on_site", "on-site", "office") or "on-site" in blob \
+            or "on site" in blob or "work from office" in blob:
+        return "WFO"
+    if "remote" in blob:
+        return "Remote"
+    return "WFO" if (location or "").strip() else "-"
+
+
 def key_for(title: str | None, company: str | None, url: str | None) -> str:
     """Dedupe key: Link when present, else title|company (41 feed jobs have no URL)."""
     u = (url or "").strip()
@@ -99,7 +116,8 @@ con.commit()
 # 3. collect rows for the tab
 q = """
 SELECT j.title, j.company, j.location, j.url, j.status, j.discovered_at,
-       m.score, m.matched_skills, m.missing_skills, m.red_flags, m.reasoning
+       m.score, m.matched_skills, m.missing_skills, m.red_flags, m.reasoning,
+       j.remote, j.remote_policy
 FROM jobs j JOIN match_results m ON m.job_id = j.id
 WHERE m.score >= ? OR j.status = 'QUEUED'
 ORDER BY m.score DESC
@@ -118,6 +136,9 @@ cfg = SheetConfig(
 ws = GoogleSheetsBackend(cfg)._spreadsheet.worksheet("hermes")
 vals = ws.get_all_values()
 header, body = vals[0], vals[1:]
+if len(header) < 16:
+    header = header + [""] * (16 - len(header))
+    header[15] = "WFO/Remote"
 
 # purge India rows + dedupe the tab (earlier appends duplicated URL-less feed
 # jobs): keep first occurrence, prefer the row that has a Link)
@@ -149,7 +170,8 @@ updates: list[tuple[int, list[str]]] = []  # 0-based body index -> full 15-col r
 appends: list[list[str]] = []
 next_no = max([int(r[0]) for r in body if r and str(r[0]).isdigit()] or [0]) + 1
 
-for title, company, loc, url, status, disc, score, mk, ms, flags, reason in db_rows:
+for title, company, loc, url, status, disc, score, mk, ms, flags, reason, \
+        remote, policy in db_rows:
     fit = round(float(score or 0) * 100)
     if fit < MIN_FIT:
         continue
@@ -167,15 +189,16 @@ for title, company, loc, url, status, disc, score, mk, ms, flags, reason in db_r
         (flags or "")[:80],
         (reason or "")[:240],
         (status or "").lower(),
+        work_mode(title, loc, remote, policy),
     ]
     key = key_for(title, company, url)
     if key in by_key:
-        old = body[by_key[key]] + [""] * (15 - len(body[by_key[key]]))
+        old = body[by_key[key]] + [""] * (16 - len(body[by_key[key]]))
         full = [
             old[0], old[1], gen[0], gen[1], gen[2], gen[3], gen[4], gen[5],
             old[8] if old[8] else ("queue" if fit >= 55 else "skip"),
             gen[6], gen[7], gen[8], gen[9],
-            old[13] if old[13] else gen[10], (url or "").strip(),
+            old[13] if old[13] else gen[10], (url or "").strip(), gen[11],
         ]
         updates.append((by_key[key], full))
     elif len(appends) < LIMIT:
@@ -183,7 +206,7 @@ for title, company, loc, url, status, disc, score, mk, ms, flags, reason in db_r
             [str(next_no), date.today().isoformat(),
              gen[0], gen[1], gen[2], gen[3], gen[4], gen[5],
              "queue" if fit >= 55 else "skip",
-             gen[6], gen[7], gen[8], gen[9], gen[10], (url or "").strip()]
+             gen[6], gen[7], gen[8], gen[9], gen[10], (url or "").strip(), gen[11]]
         )
         next_no += 1
 
@@ -194,7 +217,7 @@ if not DRY:
     last = 1
     for i, r in enumerate(body):
         row = merged_by_index.get(i, r)
-        row = row + [""] * (15 - len(row))
+        row = row + [""] * (16 - len(row))
         row[0] = str(last)
         final.append(row)
         last += 1
