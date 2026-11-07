@@ -154,7 +154,7 @@ if not DRY:
     # one write: rewrite the whole tab (header + survivors-with-updates + appends)
     merged_by_index = dict(updates)
     final: list[list[str]] = [header]
-    last = 2
+    last = 1
     for i, r in enumerate(body):
         row = merged_by_index.get(i, r)
         row = row + [""] * (15 - len(row))
