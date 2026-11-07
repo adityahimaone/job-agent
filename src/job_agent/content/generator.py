@@ -139,9 +139,23 @@ def _select_evidence(
     def add(items) -> None:
         for item in items or []:
             cleaned = str(item).strip()
-            if cleaned and cleaned not in seen:
-                seen.add(cleaned)
-                pool.append(cleaned)
+            if not cleaned:
+                continue
+            tokens = _tokenize(cleaned)
+            # Near-duplicate guard: the same achievement appears both as a
+            # "fact" and as a role bullet with slightly different wording.
+            if tokens and any(
+                tokens and len(tokens & seen_tokens) / max(len(tokens), 1) >= 0.6
+                for seen_tokens in _seen_token_sets
+            ):
+                continue
+            if cleaned in seen:
+                continue
+            seen.add(cleaned)
+            _seen_token_sets.append(tokens)
+            pool.append(cleaned)
+
+    _seen_token_sets: list[set[str]] = []
 
     add(getattr(candidate, "facts", None))
     for role in getattr(candidate, "roles", None) or []:
@@ -165,6 +179,8 @@ def _select_evidence(
     # Stable sort keeps original (source) order for equal scores.
     ranked = sorted(pool, key=score, reverse=True)
     return ranked[:5]
+
+    _seen_token_sets.clear()
 
 
 def _split_email(rendered: str, default_subject: str) -> tuple[str, str]:
@@ -287,6 +303,17 @@ def generate_documents(
         ms = list(matched_skills) if matched_skills else []
         if not ms:
             ms = list(requirements.must_have[:6]) or list(cc.get("skills_flat", [])[:6])
+        # Cover-letter phrasing pairs must_have with matched skills; if they are
+        # the same word the sentence repeats itself ("focus on React ... with
+        # React"). Top up from the grounded skill list, minus must_haves.
+        top_up = [
+            s for s in cc.get("skills_flat", [])
+            if s not in ms and s not in requirements.must_have
+        ]
+        for skill in top_up:
+            if len(ms) >= 4:
+                break
+            ms.append(skill)
 
         evidence = _select_evidence(candidate, requirements)
 
@@ -307,6 +334,8 @@ def generate_documents(
             "requirements": requirements.as_context(),
             "evidence": evidence,
             "matched_skills": ms,
+            # Phrase "hands-on experience with X" must not repeat must_haves
+            "extra_skills": [s for s in ms if s not in requirements.must_have],
             "profile": profile_dict,
             "greeting": greeting,
             "signoff": signoff,
