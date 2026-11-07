@@ -1,2 +1,2 @@
-{# How to edit: Bahasa Indonesia versi singkat untuk koneksi. #}
-Halo — saya {{ candidate.name }}, {{ candidate.headline }}. Saya melihat lowongan {{ job.title }} di {{ job.company }} dan ingin terhubung; saya banyak bekerja dengan {{ matched_skills|join(', ') }}. Terbuka untuk obrolan singkat!
+{# How to edit: Bahasa Indonesia versi singkat untuk koneksi (di bawah 300 karakter). #}
+Halo! Saya {{ candidate.name }}, {{ candidate.headline }} ({{ candidate.years_experience }}+ thn di B2B SaaS & platform 15K+ user). Tertarik dengan posisi {{ job.title }} di {{ job.company }}—fokus saya di {{ matched_skills[:3]|join(', ') or 'React, Next.js & TypeScript' }}. Portofolio: {{ candidate.links.portfolio }}. Salam kenal!

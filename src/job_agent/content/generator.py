@@ -135,7 +135,7 @@ def _lang_name(base: str, lang: str) -> str:
 
 
 def _select_evidence(
-    candidate: CandidateProfile, requirements: JobRequirements
+    candidate: CandidateProfile, requirements: JobRequirements, lang: str = "en"
 ) -> list[str]:
     """Pick 3-5 verbatim bullets from facts + role bullets by token overlap."""
     pool: list[str] = []
@@ -162,8 +162,17 @@ def _select_evidence(
 
     _seen_token_sets: list[set[str]] = []
 
-    add(getattr(candidate, "facts", None))
-    for role in getattr(candidate, "roles", None) or []:
+    primary, secondary = (
+        (getattr(candidate, "facts_id", None), None)
+        if lang == "id"
+        else (getattr(candidate, "facts", None), None)
+    )
+    add(primary)
+    if not pool:  # keep the generator usable on profiles that lack ID facts
+        add(secondary or getattr(candidate, "facts", None))
+    for role in (getattr(candidate, "roles_id", None) or []) if lang == "id" else (
+        getattr(candidate, "roles", None) or []
+    ):
         if isinstance(role, dict):
             add(role.get("bullets"))
 
@@ -322,7 +331,7 @@ def generate_documents(
                 break
             ms.append(skill)
 
-        evidence = _select_evidence(candidate, requirements)
+        evidence = _select_evidence(candidate, requirements, lang)
 
         name = str(cc.get("name") or "Candidate")
         email = str(cc.get("email") or "")

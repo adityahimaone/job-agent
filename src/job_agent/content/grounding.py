@@ -73,6 +73,10 @@ def check_grounding(text: str, profile: CandidateProfile) -> list[str]:
             warnings.append(f"Email address not grounded in candidate profile: {found}")
 
     facts_norm = _normalize(" ".join(str(f) for f in facts))
+    # years_experience comes from the profile itself, so allow "<n>+ years".
+    years = getattr(profile, "years_experience", None)
+    if years:
+        facts_norm = f"{facts_norm} {years}+years"
     for match in _NUMERIC_CLAIM_RE.finditer(text):
         claim = match.group(0).strip()
         if _normalize(claim) not in facts_norm:

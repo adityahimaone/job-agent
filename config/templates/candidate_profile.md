@@ -43,6 +43,7 @@ skills:
   Design:
     - Figma
     - design systems
+    - reusable component design
   AI:
     - LLM/AI workflow automation
 
@@ -53,8 +54,10 @@ constraints:
   hours_per_week: 20
   min_hourly_rate: 30
   currency: USD
-  timezone_alignment: "GMT+7 ±4"
-  availability: "part-time, remote"
+  timezone_alignment: "GMT+7 (flexible overlap across APAC & EU hours)"
+  timezone_alignment_id: "WIB / GMT+7 (fleksibel untuk kolaborasi lintas zona waktu)"
+  availability: "remote roles (full-time, contract, or part-time)"
+  availability_id: "pekerjaan remote maupun kolaborasi fleksibel (full-time, contract, atau part-time)"
 
 # ── Extra front-matter keys ──────────────────────────────────────────────────
 # Any key NOT in the core set above is exposed verbatim to templates.
@@ -74,26 +77,61 @@ used. See `docs/TEMPLATES.md` before editing.
 
 ## Verified facts
 
-- 4+ years of professional experience building production web applications as a design engineer / frontend engineer.
-- Built Bisadaya, a job-seeker SaaS serving 15K+ users, with Next.js SSR and a feature-based architecture.
-- Delivered Campus Connect in 3 months as part of the PT Fatiha Sakti product team.
-- Shipped HRIS features and KPI automation that removed manual reporting work.
-- Improved production performance of a tRPC/Prisma HR system at 80&Company.
-- Comfortable owning the frontend end-to-end with React, Next.js, TypeScript, Zustand and React Query.
-- Experience spans SSR SaaS products, internal HR systems, design systems, and AI/LLM workflow automation.
+# [Frontend Architecture & High-Scale Delivery]
+- Led frontend development for a production job-seeker platform serving 15K+ users, architecting a scalable codebase with Next.js SSR, feature-based architecture, Zustand, and React Query.
+- Built and launched Campus Connect within 3 months as part of the PT Fatiha Sakti product team using scalable frontend architecture, Next.js SSR, and reusable component design.
+
+# [B2B SaaS, Fullstack & Workflow Automation]
+- Developed and maintained core frontend features across a multi-product B2B SaaS HRIS ecosystem, and implemented automated KPI tracking workflows in 3 months that eliminated manual HR reporting.
+- Resolved critical production bottlenecks and optimized frontend performance for a tRPC and Prisma HR management system at 80&Company (Kyoto, Japan).
+
+# [Design Engineering & UI Systems]
+- Built responsive e-commerce, NFT, and high-conversion landing-page interfaces using React, Next.js, and Tailwind CSS with reusable UI components.
+- Own frontend architecture end-to-end—bridging reusable design systems, interactive motion (GSAP/Framer Motion), scalable state management, and AI/LLM workflow automation.
+
+## Verified facts (ID)
+
+# [Arsitektur Frontend & Skala Produksi]
+- Memimpin pengembangan frontend pada platform pencari kerja berskala produksi (15.000+ pengguna) menggunakan Next.js SSR, feature-based architecture, Zustand, dan React Query.
+- Membangun dan merilis platform Campus Connect dalam waktu 3 bulan menggunakan arsitektur frontend yang scalable, Next.js SSR, dan komponen reusable.
+
+# [B2B SaaS, Fullstack & Otomatisasi]
+- Mengembangkan fitur inti pada ekosistem produk B2B SaaS HRIS berskala enterprise serta merancang otomatisasi KPI dalam 3 bulan yang memangkas proses pelaporan manual tim HR.
+- Meningkatkan reliabilitas produksi dan mengoptimalkan performa alur data frontend pada sistem manajemen HR berbasis tRPC dan Prisma di 80&Company (Kyoto, Jepang).
+
+# [Design Engineering & Sistem UI]
+- Membangun antarmuka e-commerce, platform NFT, dan landing page responsif menggunakan React, Next.js, dan Tailwind CSS dengan arsitektur komponen yang reusable.
+- Menangani arsitektur frontend secara end-to-end—menggabungkan design systems, animasi interaktif (GSAP/Framer Motion), state management, dan otomatisasi workflow berbasis AI/LLM.
 
 ## Experience
 
 ### Frontend SaaS Developer | PT Fatiha Sakti | Oct 2022–Present | Jakarta
-- Built Bisadaya, a job-seeker SaaS serving 15K+ users, with Next.js SSR, feature-based architecture, Zustand and React Query.
-- Shipped Campus Connect in 3 months as part of the product team.
-- Built HRIS features and KPI automation that removed manual reporting work.
+- Led frontend development for a production job-seeker platform serving 15K+ users, using Next.js SSR, feature-based architecture, reusable component architecture, Zustand, and React Query.
+- Built and launched Campus Connect in 3 months as part of the product team using scalable frontend architecture, SSR, reusable components, Zustand, and React Query.
+- Developed and maintained core frontend features across a multi-product B2B SaaS HRIS ecosystem, improving usability and workflow performance within a cross-functional engineering team.
+- Designed and implemented automated KPI tracking workflows within 3 months, streamlining performance evaluation and reducing manual reporting effort for HR teams.
 
 ### Fullstack Developer (part-time) | 80&Company | Apr–Sep 2024 | Kyoto
-- Built an HR system with tRPC and Prisma and improved production performance.
+- Developed frontend features for an HR Management System, integrating with backend services built with tRPC and Prisma to support scalable data workflows.
+- Resolved critical production issues and optimized frontend performance across key HR management workflows, improving application reliability.
 
-### Frontend ReactJS Developer (contract) | PT Unzyp | Jun–Sep 2022 | Indonesia
-- Built e-commerce, NFT and landing-page interfaces with React.
+### Frontend ReactJS Developer (contract) | PT Unzyp Solusi Teknologi | Jun–Sep 2022 | Jakarta
+- Built responsive e-commerce, NFT, and landing-page interfaces using React.js, Next.js, and Tailwind CSS with reusable UI components.
+
+## Experience (ID)
+
+### Frontend SaaS Developer | PT Fatiha Sakti | Oct 2022–Sekarang | Jakarta
+- Memimpin pengembangan frontend untuk platform pencari kerja berskala produksi (15.000+ pengguna), menggunakan Next.js SSR, feature-based architecture, reusable component architecture, Zustand, dan React Query.
+- Membangun dan merilis Campus Connect dalam 3 bulan sebagai bagian dari tim produk menggunakan arsitektur frontend scalable, SSR, komponen reusable, Zustand, dan React Query.
+- Mengembangkan dan memelihara fitur inti frontend lintas ekosistem B2B SaaS HRIS multi-produk, meningkatkan usability dan performa workflow dalam tim lintas fungsi.
+- Merancang dan mengimplementasikan otomatisasi KPI tracking dalam 3 bulan, mempercepat evaluasi performa dan memangkas upaya pelaporan manual tim HR.
+
+### Fullstack Developer (part-time) | 80&Company | Apr–Sep 2024 | Kyoto
+- Mengembangkan fitur frontend untuk Sistem Manajemen HR, terintegrasi dengan layanan backend berbasis tRPC dan Prisma untuk mendukung alur data yang scalable.
+- Menyelesaikan masalah produksi kritis dan mengoptimalkan performa frontend lintas workflow HR inti, meningkatkan reliabilitas aplikasi.
+
+### Frontend ReactJS Developer (contract) | PT Unzyp Solusi Teknologi | Jun–Sep 2022 | Jakarta
+- Membangun antarmuka e-commerce, NFT, dan landing page yang responsif menggunakan React.js, Next.js, dan Tailwind CSS dengan komponen UI reusable.
 
 ## Projects
 
@@ -123,6 +161,8 @@ An experimental interactive web project.
 Note: the candidate has roughly 6 years of on-site experience but presents
 "4+ years" as the canonical figure on the resume. Never state 6 years. The
 bullets below are exact phrases that must never appear in a generated document.
+Internal product brand names are deliberately hidden in generated documents and
+replaced with scale/architecture descriptions.
 
 - 6 years
 - 6+ years
@@ -132,3 +172,7 @@ bullets below are exact phrases that must never appear in a generated document.
 - led a team of
 - 100K+ users
 - Fortune 500
+- Bisadaya
+- Gadjian
+- Hadirr
+- Baktiku

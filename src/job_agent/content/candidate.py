@@ -255,8 +255,10 @@ class CandidateProfile:
     headline: str = ""
     years_experience: int = 0
     facts: list[str] = field(default_factory=list)  # verified one-line claims
+    facts_id: list[str] = field(default_factory=list)  # verified claims, Indonesian
     skills: dict[str, list[str]] = field(default_factory=dict)
     roles: list[dict] = field(default_factory=list)
+    roles_id: list[dict] = field(default_factory=list)  # Indonesian experience bullets
     projects: list[dict] = field(default_factory=list)
     constraints: dict[str, object] = field(default_factory=dict)
     do_not_claim: list[str] = field(default_factory=list)
@@ -299,10 +301,12 @@ class CandidateProfile:
             "years_experience": self.years_experience,
             "years_experience_label": f"{self.years_experience}+ years",
             "facts": list(self.facts or []),
+            "facts_id": list(self.facts_id or []),
             "facts_text": self.grounded_facts_text(),
             "skills": _as_skills(self.skills),
             "skills_flat": skills_flat,
             "roles": _normalize_roles(list(self.roles or [])),
+            "roles_id": _normalize_roles(list(self.roles_id or [])),
             "projects": _normalize_projects(list(self.projects or [])),
             "constraints": constraints,
             "do_not_claim": list(self.do_not_claim or []),
@@ -336,11 +340,17 @@ def _build(raw: str) -> CandidateProfile:
     roles = _as_obj_list(fm.get("roles")) or _parse_roles(
         sections.get("experience", "")
     )
+    roles_id = _as_obj_list(fm.get("roles_id")) or _parse_roles(
+        sections.get("experience (id)", "")
+    )
     projects = _as_obj_list(fm.get("projects")) or _parse_projects(
         sections.get("projects", "")
     )
     facts = _as_str_list(fm.get("facts")) or _bullets(
         sections.get("verified facts", "")
+    )
+    facts_id = _as_str_list(fm.get("facts_id")) or _bullets(
+        sections.get("verified facts (id)", "")
     )
     do_not_claim = _as_str_list(fm.get("do_not_claim")) or _bullets(
         sections.get("do not claim", "")
@@ -355,8 +365,10 @@ def _build(raw: str) -> CandidateProfile:
         headline=str(fm.get("headline") or ""),
         years_experience=_to_int(fm.get("years_experience")),
         facts=facts,
+        facts_id=facts_id,
         skills=_as_skills(fm.get("skills")),
         roles=roles,
+        roles_id=roles_id,
         projects=projects,
         constraints=_as_dict(fm.get("constraints")),
         do_not_claim=do_not_claim,
