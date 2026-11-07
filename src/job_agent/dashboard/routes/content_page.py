@@ -174,17 +174,17 @@ def send_email():
         language=(request.form.get("lang") or s.content.language),
     )
 
-    from job_agent.content.render_pdf import render_pdf
+    from job_agent.content.resume_asset import canonical_resume
     from job_agent.integrations.gmail_send import send_email as gmail_send
 
-    resume_pdf = render_pdf(docs.resume_markdown, title=docs.email_subject)
+    filename, resume_bytes = canonical_resume()
     try:
         result = gmail_send(
             to_addr,
             docs.email_subject,
             docs.email_body,
             attachments=[
-                ("resume.pdf", resume_pdf, "application/pdf"),
+                (filename, resume_bytes, "application/pdf"),
             ],
         )
     except Exception as exc:  # surfaced, never swallowed
