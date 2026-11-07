@@ -12,6 +12,7 @@ Usage: PYTHONPATH=src .venv/bin/python scripts/sync_hermes_tab.py [--dry-run]
 
 from __future__ import annotations
 
+import json
 import sqlite3
 import sys
 import time
@@ -41,6 +42,23 @@ def excluded(location: str | None) -> bool:
     return any(x in loc for x in excluded_locations)
 
 
+def key_for(title: str | None, company: str | None, url: str | None) -> str:
+    """Dedupe key: Link when present, else title|company (41 feed jobs have no URL)."""
+    u = (url or "").strip()
+    return u if u else f"{(title or '').strip().lower()}|{(company or '').strip().lower()}"
+
+
+def render_skills(raw: str | None) -> str:
+    """match_results stores JSON lists OR legacy comma strings — render readable."""
+    if not raw or raw == "[]":
+        return "-"
+    try:
+        items = json.loads(raw)
+        return ", ".join(items) if isinstance(items, list) and items else "-"
+    except (ValueError, TypeError):
+        return raw
+
+
 # ---------------------------------------------------------------- DB side
 con = sqlite3.connect(DB)
 
@@ -55,21 +73,25 @@ for jid in banned:
         (jid,),
     )
 
-# 2. backfill empty matched/missing skills from the description (no AI)
+# 2. backfill empty matched/missing skills from description+title (no AI).
+#    Canonical form: JSON array (what the dataclass serializes to work against).
 filled = 0
-q = """select m.id, j.description from match_results m join jobs j on j.id=m.job_id
-       where coalesce(m.matched_skills,'') in ('','[]')"""
-for mid, desc in con.execute(q).fetchall():
-    d = (desc or "").lower()
-    if not d:
+q = """select m.id, j.description, j.title, m.matched_skills, m.missing_skills
+       from match_results m join jobs j on j.id=m.job_id"""
+for mid, desc, title, mk, ms in con.execute(q).fetchall():
+    need = render_skills(mk) == "-" or render_skills(ms) == "-"
+    if not need:
+        continue
+    d = ((desc or "") + " " + (title or "")).lower()
+    if not d.strip():
         continue
     matched = [s for s in all_skills if s.lower() in d]
     missing = [s for s in all_skills if s.lower() not in d]
-    if not matched:
+    if not matched and not missing:
         continue
     con.execute(
         "update match_results set matched_skills=?, missing_skills=? where id=?",
-        (", ".join(matched), ", ".join(missing), mid),
+        (json.dumps(matched), json.dumps(missing), mid),
     )
     filled += 1
 con.commit()
@@ -97,16 +119,31 @@ ws = GoogleSheetsBackend(cfg)._spreadsheet.worksheet("hermes")
 vals = ws.get_all_values()
 header, body = vals[0], vals[1:]
 
-# purge excluded-location rows: rebuild the whole tab in ONE write (Sheets
-# write quota is 60/min/user — 29 row deletes used to blow it)
+# purge India rows + dedupe the tab (earlier appends duplicated URL-less feed
+# jobs): keep first occurrence, prefer the row that has a Link)
 purge = {i for i, r in enumerate(body) if len(r) > 4 and excluded(r[4])}
 body = [r for i, r in enumerate(body) if i not in purge]
+seen: dict[str, int] = {}
+deduped: list[list[str]] = []
+dups = 0
+for r in body:
+    k = key_for(r[2] if len(r) > 2 else None, r[3] if len(r) > 3 else None,
+                r[14] if len(r) > 14 else None)
+    if k in seen:
+        dups += 1
+        idx = seen[k]
+        if (deduped[idx][14] if len(deduped[idx]) > 14 else "").strip() == "" \
+                and len(r) > 14 and r[14].strip():
+            deduped[idx] = r  # keep the version that has a link
+        continue
+    seen[k] = len(deduped)
+    deduped.append(r)
+body = deduped
 
-by_link = {}
+by_key = {}
 for i, r in enumerate(body):
-    link = (r[14] if len(r) > 14 else "").strip()
-    if link:
-        by_link[link] = i
+    by_key[key_for(r[2] if len(r) > 2 else None, r[3] if len(r) > 3 else None,
+                   r[14] if len(r) > 14 else None)] = i
 
 updates: list[tuple[int, list[str]]] = []  # 0-based body index -> full 15-col row
 appends: list[list[str]] = []
@@ -125,28 +162,28 @@ for title, company, loc, url, status, disc, score, mk, ms, flags, reason in db_r
         (disc or "")[:10],
         str(fit),
         level,
-        (mk or "")[:120],
-        (ms or "")[:120],
+        render_skills(mk)[:120],
+        render_skills(ms)[:120],
         (flags or "")[:80],
         (reason or "")[:240],
         (status or "").lower(),
     ]
-    key = (url or "").strip()
-    if key and key in by_link:
-        old = body[by_link[key]] + [""] * (15 - len(body[by_link[key]]))
+    key = key_for(title, company, url)
+    if key in by_key:
+        old = body[by_key[key]] + [""] * (15 - len(body[by_key[key]]))
         full = [
             old[0], old[1], gen[0], gen[1], gen[2], gen[3], gen[4], gen[5],
             old[8] if old[8] else ("queue" if fit >= 55 else "skip"),
             gen[6], gen[7], gen[8], gen[9],
-            old[13] if old[13] else gen[10], key,
+            old[13] if old[13] else gen[10], (url or "").strip(),
         ]
-        updates.append((by_link[key], full))
+        updates.append((by_key[key], full))
     elif len(appends) < LIMIT:
         appends.append(
             [str(next_no), date.today().isoformat(),
              gen[0], gen[1], gen[2], gen[3], gen[4], gen[5],
              "queue" if fit >= 55 else "skip",
-             gen[6], gen[7], gen[8], gen[9], gen[10], key]
+             gen[6], gen[7], gen[8], gen[9], gen[10], (url or "").strip()]
         )
         next_no += 1
 
@@ -170,7 +207,7 @@ if not DRY:
         ws.resize(rows=len(final))  # shrink trailing rows if any were purged
 
 print(
-    f"purged_detail_rows={len(purge)} db_backfilled={filled} "
+    f"purged_detail_rows={len(purge)} dups_removed={dups} db_backfilled={filled} "
     f"updated={len(updates)} appended={len(appends)} "
     f"banned_jobs={len(banned)} dry_run={DRY}"
 )
