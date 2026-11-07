@@ -87,8 +87,8 @@ for mid, desc, title, mk, ms in con.execute(q).fetchall():
         continue
     matched = [s for s in all_skills if s.lower() in d]
     missing = [s for s in all_skills if s.lower() not in d]
-    if not matched and not missing:
-        continue
+    if not matched:
+        continue  # nothing real to show in Cocok; sheet renders '-'
     con.execute(
         "update match_results set matched_skills=?, missing_skills=? where id=?",
         (json.dumps(matched), json.dumps(missing), mid),
