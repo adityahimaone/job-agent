@@ -19,7 +19,7 @@ agent:
 matching:
   auto_apply_threshold: 0.90
   review_threshold: 0.55
-  model: "agentic"
+  model: "cheap"
   max_ai_calls_per_run: 20          # deprecated, kept for compatibility
   max_match_calls_per_run: 40       # budget for scoring only
   max_generation_calls_per_run: 60  # budget for resumes / letters / emails

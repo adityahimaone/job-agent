@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Content · Job Agent{% endblock %}
+{% block content %}
+<div class="page-header animate-in">
+    <div>
+        <h2><i class="bi bi-file-earmark-text" style="margin-right: 0.5rem;"></i>Content &amp; Templates</h2>
+        <p class="text-muted">Grounded documents generated for every application. Read-only unless you send an email.</p>
+    </div>
+</div>
+
+<div class="card animate-in delay-1">
+    <div class="card-header"><h5>Candidate profile (source of truth)</h5></div>
+    <div class="card-body">
+        <div class="settings-grid">
+            <div><span class="text-muted text-sm">Name</span><div>{{ candidate.name }}</div></div>
+            <div><span class="text-muted text-sm">Email</span><div>{{ candidate.email }}</div></div>
+            <div><span class="text-muted text-sm">Location</span><div>{{ candidate.location }}</div></div>
+            <div><span class="text-muted text-sm">Experience</span><div>{{ candidate.years_experience }}+ years</div></div>
+            <div><span class="text-muted text-sm">Verified facts</span><div>{{ candidate.facts|length }}</div></div>
+            <div><span class="text-muted text-sm">Roles / Projects</span><div>{{ candidate.roles|length }} / {{ candidate.projects|length }}</div></div>
+        </div>
+    </div>
+</div>
+
+<div class="card animate-in delay-2">
+    <div class="card-header"><h5>Templates</h5></div>
+    <div class="card-body" style="padding: 0;">
+        <table class="table">
+            <thead>
+                <tr><th>Template</th><th>File</th><th>Size</th><th style="text-align:right;">Action</th></tr>
+            </thead>
+            <tbody>
+                {% for f in files %}
+                <tr>
+                    <td><strong>{{ f.name }}</strong></td>
+                    <td class="text-muted text-sm">{{ templates_dir }}/{{ f.name }}.md</td>
+                    <td class="text-muted text-sm">{{ f.size }} B</td>
+                    <td style="text-align:right;">
+                        {% if f.exists %}
+                        <a class="btn btn-sm btn-outline-primary" href="/content/template/{{ f.name }}">View source</a>
+                        {% else %}
+                        <span class="badge bg-warning">missing (built-in fallback)</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card animate-in delay-3">
+    <div class="card-header"><h5>Preview for a job</h5></div>
+    <div class="card-body">
+        <form method="get" action="/content/preview" style="display:flex; gap:.75rem; align-items:flex-end;">
+            <div style="flex:1;">
+                <label class="form-label">Job id</label>
+                <input type="number" name="job_id" class="form-control" placeholder="e.g. 159" required>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">
+                <i class="bi bi-eye"></i> Render documents
+            </button>
+        </form>
+        <p class="text-muted text-sm" style="margin-top:.75rem;">
+            Rendering is deterministic and offline — no AI call, nothing is sent.
+            Documents are also written to {{ documents_dir }} by the agent during a run.
+        </p>
+    </div>
+</div>
+{% endblock %}

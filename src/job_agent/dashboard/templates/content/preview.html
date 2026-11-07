@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Preview · Job Agent{% endblock %}
+{% block content %}
+<div class="page-header animate-in">
+    <div>
+        <h2>Document preview{% if posting %} — {{ posting.title }} · {{ posting.company }}{% endif %}</h2>
+        <p class="text-muted">Deterministic render. No AI call, nothing sent.</p>
+    </div>
+    <a class="btn btn-sm btn-outline-secondary" href="/content">&larr; Back</a>
+</div>
+
+{% if warnings %}
+<div class="card animate-in" style="border-left: 4px solid #e0a100;">
+    <div class="card-body">
+        <strong>Grounding warnings:</strong>
+        <ul>{% for w in warnings %}<li>{{ w }}</li>{% endfor %}</ul>
+    </div>
+</div>
+{% endif %}
+
+<div class="card animate-in delay-1">
+    <div class="card-header"><h5>Resume</h5></div>
+    <div class="card-body">
+        <pre style="white-space: pre-wrap; font-size:.8rem; line-height:1.55; margin:0;">{{ docs.resume_markdown }}</pre>
+    </div>
+</div>
+
+<div class="card animate-in delay-2">
+    <div class="card-header"><h5>Cover letter</h5></div>
+    <div class="card-body">
+        <pre style="white-space: pre-wrap; font-size:.82rem; line-height:1.55; margin:0;">{{ docs.cover_letter }}</pre>
+    </div>
+</div>
+
+<div class="card animate-in delay-3">
+    <div class="card-header"><h5>Email — subject + body</h5></div>
+    <div class="card-body">
+        <div class="text-sm text-muted">Subject</div>
+        <div style="margin-bottom:.75rem;"><strong>{{ docs.email_subject }}</strong></div>
+        <pre style="white-space: pre-wrap; font-size:.82rem; line-height:1.55; margin:0;">{{ docs.email_body }}</pre>
+    </div>
+</div>
+
+<div class="card animate-in delay-4">
+    <div class="card-header"><h5>Connection note &amp; gig profile</h5></div>
+    <div class="card-body">
+        <pre style="white-space: pre-wrap; font-size:.82rem; line-height:1.55; margin:0 0 1rem;">{{ docs.connection_note }}</pre>
+        <pre style="white-space: pre-wrap; font-size:.82rem; line-height:1.55; margin:0;">{{ docs.gig_profile }}</pre>
+    </div>
+</div>
+
+<div class="card animate-in delay-5">
+    <div class="card-header"><h5>Send this email (Google OAuth — Hermes account)</h5></div>
+    <div class="card-body">
+        <form method="post" action="/content/email">
+            <input type="hidden" name="job_id" value="{{ job_id }}">
+            <div style="display:flex; gap:.75rem; align-items:flex-end;">
+                <div style="flex:1;">
+                    <label class="form-label">Recipient email</label>
+                    <input type="email" name="to" class="form-control" placeholder="recruiter@company.com" required>
+                </div>
+                <button type="submit" class="btn btn-primary btn-sm">
+                    <i class="bi bi-envelope-fill"></i> Send via Google
+                </button>
+            </div>
+            <p class="text-muted text-sm" style="margin-top:.75rem;">
+                Sent from your Hermes Google account (gmail.send). This action is immediate and cannot be undone.
+            </p>
+        </form>
+    </div>
+</div>
+{% endblock %}
