@@ -3,6 +3,7 @@
 
 {{ candidate.headline }} with {{ candidate.years_experience }}+ years building production web applications. I work across coding, design systems, and AI/LLM workflow automation.{% if matched_skills %} Core stack: {{ matched_skills|join(', ') }}.{% endif %}
 
+
 Recent, relevant work:
 {% for e in evidence %}
 - {{ e }}
