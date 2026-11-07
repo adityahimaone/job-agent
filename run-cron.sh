@@ -12,7 +12,7 @@ LOG=/home/adityahimaone/logs/job-agent-cron.log
   echo "=== $(date -Is) run done (exit $rc) ==="
   # results surface in the 'hermes' research tab, not in jobs/gigs tabs
   PYTHONPATH=src /home/adityahimaone/apps/job-agent/.venv/bin/python \
-    scripts/push_hermes_tab.py
+    scripts/sync_hermes_tab.py
   echo "=== $(date -Is) sheet done (exit $?) ==="
 } >> "$LOG" 2>&1
 # keep the log bounded

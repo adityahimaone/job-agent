@@ -104,6 +104,13 @@ exclusions:
     - "junior"
     - "clearance required"
   companies: []
+  # Hard location skip (substring, word-boundary) — Adit does not want India/SA roles.
+  locations:
+    - "india"
+    - "pakistan"
+    - "bangladesh"
+    - "sri lanka"
+    - "saudi arabia"
 
 # Tone + which resume template the legacy pipeline used.
 cover_letter_tone: "professional"

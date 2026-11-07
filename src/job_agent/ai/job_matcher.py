@@ -128,6 +128,16 @@ class JobMatcher:
         exclusions = profile.get("exclusions", {})
         excluded_companies = [c.lower() for c in exclusions.get("companies", [])]
         excluded_keywords = [k.lower() for k in exclusions.get("keywords", [])]
+        excluded_locations = [c.lower() for c in exclusions.get("locations", [])]
+        loc_lower = (getattr(job, "location", "") or "").lower()
+
+        for loc in excluded_locations:
+            if loc and re.search(rf"\b{re.escape(loc)}\b", loc_lower):
+                return MatchScore(
+                    score=0.0,
+                    reasoning=f"Location '{job.location}' is in the exclusion list.",
+                    red_flags=["excluded_location"],
+                )
 
         if job.company.lower() in excluded_companies:
             return MatchScore(
@@ -204,12 +214,20 @@ class JobMatcher:
             )
             fit = score_fit(state)
             if fit is not None:
+                desc = (job.description or "").lower()
+                all_skills = skills.get("required", []) + skills.get(
+                    "preferred", []
+                )
+                matched = [s for s in all_skills if s.lower() in desc]
+                missing = [s for s in all_skills if s.lower() not in desc]
                 return MatchScore(
                     score=fit,
                     reasoning=f"JEV fit score {fit:.2f} (typesafe jev, structured).",
                     role_fit=(
                         "strong" if fit >= 0.90 else "possible" if fit >= 0.70 else "none"
                     ),
+                    matched_skills=matched,
+                    missing_skills=missing,
                     red_flags=["jev_scored"] if fit >= 0.70 else ["jev_low_fit"],
                 )
 
