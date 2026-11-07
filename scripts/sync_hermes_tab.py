@@ -33,6 +33,8 @@ DRY = "--dry-run" in sys.argv
 
 profile = yaml.safe_load(open(PROFILE))
 excluded_locations = [s.lower() for s in profile.get("exclusions", {}).get("locations", [])]
+location_priority = [s.lower() for s in
+                    profile.get("search", {}).get("location_priority", [])]
 skills_cfg = profile.get("skills", {})
 all_skills = list(skills_cfg.get("required", [])) + list(skills_cfg.get("preferred", []))
 
@@ -40,6 +42,15 @@ all_skills = list(skills_cfg.get("required", [])) + list(skills_cfg.get("preferr
 def excluded(location: str | None) -> bool:
     loc = (location or "").lower()
     return any(x in loc for x in excluded_locations)
+
+
+def location_rank(location: str | None) -> int:
+    """SEA-first tier: 0 = Jakarta, 1 = Indonesia, 2 = SG, ... big = unknown."""
+    loc = (location or "").lower()
+    for i, needle in enumerate(location_priority):
+        if needle in loc:
+            return i
+    return len(location_priority) + 1
 
 
 def work_mode(title: str | None, location: str | None,
@@ -228,6 +239,12 @@ if not DRY:
         row[0] = str(last)
         final.append(row)
         last += 1
+    body_rows = final[1:]
+    body_rows.sort(key=lambda r: (location_rank(r[4] if len(r) > 4 else None),
+                                  -(int(r[6]) if len(r) > 6 and str(r[6]).isdigit() else 0)))
+    final = [header] + body_rows
+    for n, row in enumerate(final[1:], start=1):
+        row[0] = str(n)
     ws.update(values=final, value_input_option="RAW")
     if len(final) < len(vals):
         ws.resize(rows=len(final))  # shrink trailing rows if any were purged
