@@ -79,6 +79,13 @@ ego:
   board_config_path: "config/discovery_sources.yaml"
 
 platforms:
+  dealls:
+    enabled: true
+    use_ego: true
+    max_requests_per_minute: 3
+    max_applications_per_day: 0   # discovery only; Dealls has no apply automation
+    session_duration_minutes: 45
+    cooldown_minutes: 30
   linkedin:
     enabled: true
     use_ego: true

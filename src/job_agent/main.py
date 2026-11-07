@@ -42,7 +42,7 @@ def cmd_init_db(ctx: click.Context) -> None:
 @click.argument(
     "platform",
     type=click.Choice(
-        ["linkedin", "indeed", "glassdoor", "ziprecruiter", "dice", "wellfound"]
+        ["linkedin", "indeed", "glassdoor", "ziprecruiter", "dice", "wellfound", "dealls"]
     ),
 )
 @click.option("--username", "-u", prompt=True, help="Platform username/email.")
@@ -75,7 +75,7 @@ def cmd_add_credential(ctx: click.Context, platform: str, username: str) -> None
 @click.option(
     "--platform",
     type=click.Choice(
-        ["linkedin", "indeed", "glassdoor", "ziprecruiter", "dice", "wellfound"]
+        ["linkedin", "indeed", "glassdoor", "ziprecruiter", "dice", "wellfound", "dealls"]
     ),
 )
 @click.option("--dry-run", is_flag=True, help="Discover and match only, don't apply.")
@@ -151,7 +151,7 @@ def cmd_apply_approved(ctx: click.Context, dry_run: bool, live: bool) -> None:
     "-P",
     default="linkedin",
     type=click.Choice(
-        ["linkedin", "indeed", "glassdoor", "ziprecruiter", "dice", "wellfound"]
+        ["linkedin", "indeed", "glassdoor", "ziprecruiter", "dice", "wellfound", "dealls"]
     ),
 )
 @click.option("--query", "-q", required=True, help="Search query.")
@@ -197,7 +197,9 @@ def cmd_ego(ctx, action, platform, query, location, limit):
 
     settings = ctx.obj["settings"]
     cfg = settings.ego
-    resolver = getattr(ego_client, "resolve_ego_binary", None)
+    # Resolving locally only makes sense when ego runs on this machine; over
+    # ssh the Mac resolves its own binary.
+    resolver = None if cfg.host else getattr(ego_client, "resolve_ego_binary", None)
     binary = cfg.binary or (resolver() if resolver else ego_client.DEFAULT_BINARY)
     client = ego_client.EgoClient(
         host=cfg.host or None,

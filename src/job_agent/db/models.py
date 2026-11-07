@@ -41,6 +41,7 @@ class Platform(PyEnum):
     GLINTS = "glints"
     KALIBRR = "kalibrr"
     SEEK = "seek"
+    DEALLS = "dealls"
     # AI-training / expert networks
     ALIGNERR = "alignerr"
     OUTLIER = "outlier"

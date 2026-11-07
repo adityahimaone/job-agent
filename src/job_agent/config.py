@@ -142,6 +142,12 @@ class PlatformsConfig(BaseModel):
         session_duration_minutes=45,
         cooldown_minutes=25,
     )
+    dealls: PlatformConfig = PlatformConfig(
+        enabled=False,
+        use_ego=True,
+        max_requests_per_minute=3,
+        max_applications_per_day=0,
+    )
 
 
 class BrowserConfig(BaseModel):
