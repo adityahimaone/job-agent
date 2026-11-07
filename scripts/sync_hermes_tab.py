@@ -218,6 +218,9 @@ if not DRY:
     for i, r in enumerate(body):
         row = merged_by_index.get(i, r)
         row = row + [""] * (16 - len(row))
+        if not row[15].strip():  # rows with no DB match: derive from own text
+            row[15] = work_mode(row[2] if len(row) > 2 else None,
+                                row[4] if len(row) > 4 else None, None, None)
         row[0] = str(last)
         final.append(row)
         last += 1
