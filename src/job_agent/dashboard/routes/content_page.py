@@ -36,6 +36,12 @@ DOC_NAMES = (
     "gig_profile",
 )
 
+# Rendered per application language; every other doc is English-only.
+BILINGUAL = ("cover_letter", "email_apply", "connection_note")
+LANGS = ("en", "id")
+# The resume is never generated: applications attach the published PDF.
+RESUME_PDF_URL = "https://adityahimaone.space/resume.pdf"
+
 
 def _settings():
     return current_app.config["SETTINGS"]
@@ -75,12 +81,24 @@ def index():
     ts = _templates()
     files = []
     for name in DOC_NAMES + ("candidate_profile",):
-        path = ts.directory / f"{name}.md"
+        langs = []
+        for lang in LANGS if name in BILINGUAL else ("en",):
+            path = ts.directory / f"{name if lang == 'en' else f'{name}_{lang}'}.md"
+            langs.append(
+                {
+                    "lang": lang,
+                    "exists": path.is_file(),
+                    "size": path.stat().st_size if path.is_file() else 0,
+                }
+            )
         files.append(
             {
                 "name": name,
-                "exists": path.is_file(),
-                "size": path.stat().st_size if path.is_file() else 0,
+                "langs": langs,
+                "bilingual": name in BILINGUAL,
+                "is_resume": name == "resume_master",
+                "exists": langs[0]["exists"],
+                "size": sum(item["size"] for item in langs),
             }
         )
     candidate = load_candidate_profile(s.resolve_path(s.content.candidate_profile))
@@ -90,13 +108,17 @@ def index():
         candidate=candidate,
         templates_dir=str(ts.directory),
         documents_dir=str(s.documents_dir),
+        resume_pdf_url=RESUME_PDF_URL,
     )
 
 
 @bp.route("/template/<name>")
 def template_view(name: str):
     """Raw source of one template or the candidate profile."""
-    if name not in DOC_NAMES + ("candidate_profile",):
+    base_name = name[:-3] if name.endswith("_id") else name
+    if base_name not in DOC_NAMES + ("candidate_profile",) or (
+        base_name not in BILINGUAL and name.endswith("_id")
+    ):
         flash("Unknown template.", "danger")
         return redirect(url_for("content_page.index"))
     s = _settings()
@@ -145,6 +167,8 @@ def preview():
         posting=posting,
         docs=docs,
         warnings=warnings,
+        lang=(request.args.get("lang") or s.content.language),
+        resume_pdf_url=RESUME_PDF_URL,
     )
 
 

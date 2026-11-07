@@ -6,7 +6,15 @@
         <h2>Document preview{% if posting %} — {{ posting.title }} · {{ posting.company }}{% endif %}</h2>
         <p class="text-muted">Deterministic render. No AI call, nothing sent.</p>
     </div>
-    <a class="btn btn-sm btn-outline-secondary" href="/content">&larr; Back</a>
+    <div style="display:flex; gap:.5rem; align-items:center;">
+        {% if job_id %}
+        <div class="btn-group btn-group-sm" role="group" aria-label="Language">
+            <a class="btn btn-outline-primary {% if lang == 'en' %}active{% endif %}" href="/content/preview?job_id={{ job_id }}&lang=en">EN</a>
+            <a class="btn btn-outline-primary {% if lang == 'id' %}active{% endif %}" href="/content/preview?job_id={{ job_id }}&lang=id">ID</a>
+        </div>
+        {% endif %}
+        <a class="btn btn-sm btn-outline-secondary" href="/content">&larr; Back</a>
+    </div>
 </div>
 
 {% if warnings %}
@@ -19,9 +27,14 @@
 {% endif %}
 
 <div class="card animate-in delay-1">
-    <div class="card-header"><h5>Resume</h5></div>
+    <div class="card-header"><h5>Resume (attached to every email)</h5></div>
     <div class="card-body">
-        <pre style="white-space: pre-wrap; font-size:.8rem; line-height:1.55; margin:0;">{{ docs.resume_markdown }}</pre>
+        <p class="text-muted text-sm" style="margin:0 0 .5rem;">
+            Always the published English resume — not generated per job, so nothing drifts.
+        </p>
+        <a class="btn btn-sm btn-outline-primary" href="{{ resume_pdf_url }}" target="_blank" rel="noopener">
+            <i class="bi bi-file-earmark-pdf"></i> {{ resume_pdf_url }}
+        </a>
     </div>
 </div>
 
@@ -54,6 +67,7 @@
     <div class="card-body">
         <form method="post" action="/content/email">
             <input type="hidden" name="job_id" value="{{ job_id }}">
+            <input type="hidden" name="lang" value="{{ lang }}">
             <div style="display:flex; gap:.75rem; align-items:flex-end;">
                 <div style="flex:1;">
                     <label class="form-label">Recipient email</label>
@@ -64,7 +78,8 @@
                 </button>
             </div>
             <p class="text-muted text-sm" style="margin-top:.75rem;">
-                Sent from your Hermes Google account (gmail.send). This action is immediate and cannot be undone.
+                Sent from your Hermes Google account (gmail.send) in <strong>{{ lang|upper }}</strong>,
+                with the published resume PDF attached. This action is immediate and cannot be undone.
             </p>
         </form>
     </div>

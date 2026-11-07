@@ -32,14 +32,26 @@
             <tbody>
                 {% for f in files %}
                 <tr>
-                    <td><strong>{{ f.name }}</strong></td>
-                    <td class="text-muted text-sm">{{ templates_dir }}/{{ f.name }}.md</td>
+                    <td>
+                        <strong>{{ f.name }}</strong>
+                        {% if f.bilingual %}<span class="badge bg-info">EN + ID</span>{% endif %}
+                    </td>
+                    <td class="text-muted text-sm">
+                        {{ templates_dir }}/{{ f.name }}.md
+                        {% if f.bilingual %} + <span>{{ f.name }}_id.md</span>{% endif %}
+                    </td>
                     <td class="text-muted text-sm">{{ f.size }} B</td>
                     <td style="text-align:right;">
-                        {% if f.exists %}
-                        <a class="btn btn-sm btn-outline-primary" href="/content/template/{{ f.name }}">View source</a>
+                        {% if f.is_resume %}
+                        <a class="btn btn-sm btn-outline-primary" href="{{ resume_pdf_url }}" target="_blank" rel="noopener">
+                            <i class="bi bi-file-earmark-pdf"></i> Published resume
+                        </a>
                         {% else %}
-                        <span class="badge bg-warning">missing (built-in fallback)</span>
+                        {% for l in f.langs %}
+                        {% if l.exists %}
+                        <a class="btn btn-sm btn-outline-primary" href="/content/template/{{ f.name if l.lang == 'en' else f.name ~ '_id' }}">{{ l.lang.upper() }} source</a>
+                        {% endif %}
+                        {% endfor %}
                         {% endif %}
                     </td>
                 </tr>
@@ -56,6 +68,13 @@
             <div style="flex:1;">
                 <label class="form-label">Job id</label>
                 <input type="number" name="job_id" class="form-control" placeholder="e.g. 159" required>
+            </div>
+            <div>
+                <label class="form-label">Language</label>
+                <select name="lang" class="form-select">
+                    <option value="en">English</option>
+                    <option value="id">Indonesia</option>
+                </select>
             </div>
             <button type="submit" class="btn btn-primary btn-sm">
                 <i class="bi bi-eye"></i> Render documents
