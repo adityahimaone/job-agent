@@ -44,6 +44,27 @@ def excluded(location: str | None) -> bool:
     return any(x in loc for x in excluded_locations)
 
 
+def clean_reason(raw: str | None) -> str:
+    """Ringkasan stays human: strip the mechanical JEV score line."""
+    s = (raw or "").strip()
+    if s.startswith("JEV fit score "):
+        return "-"
+    return s
+
+
+def clean_flags(raw: str | None) -> str:
+    """Red flag stays human: JSON list -> readable, drop machine-only flags."""
+    try:
+        items = json.loads(raw or "[]")
+    except (ValueError, TypeError):
+        return (raw or "")[:80]
+    if not isinstance(items, list):
+        return str(items)[:80]
+    noise = {"jev_scored", "jev_low_fit"}
+    real = [i for i in items if i not in noise]
+    return ", ".join(real)[:80] if real else "-"
+
+
 def location_rank(location: str | None) -> int:
     """SEA-first tier: 0 = Jakarta, 1 = Indonesia, 2 = SG, ... big = unknown."""
     loc = (location or "").lower()
@@ -197,8 +218,8 @@ for title, company, loc, url, status, disc, score, mk, ms, flags, reason, \
         level,
         render_skills(mk)[:120],
         render_skills(ms)[:120],
-        (flags or "")[:80],
-        (reason or "")[:240],
+        clean_flags(flags),
+        clean_reason(reason)[:240],
         (status or "").lower(),
         work_mode(title, loc, remote, policy),
     ]
