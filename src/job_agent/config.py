@@ -44,6 +44,8 @@ class ContentConfig(BaseModel):
     output_dir: str = ""  # empty = <data_dir>/documents
     require_grounding: bool = True
     prompt_version: str = "2026-11-06"
+    # "en" default; "id" uses <name>_id.md template variants when present.
+    language: str = "en"
 
 
 class SheetsConfig(BaseModel):

@@ -1,0 +1,2 @@
+{# How to edit: Bahasa Indonesia versi singkat untuk koneksi. #}
+Halo — saya {{ candidate.name }}, {{ candidate.headline }}. Saya melihat lowongan {{ job.title }} di {{ job.company }} dan ingin terhubung; saya banyak bekerja dengan {{ matched_skills|join(', ') }}. Terbuka untuk obrolan singkat!

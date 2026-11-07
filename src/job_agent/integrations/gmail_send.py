@@ -57,14 +57,28 @@ def token_ready() -> bool:
         return False
 
 
-def send_email(to: str, subject: str, body: str) -> dict:
-    """Send one plain-text email. Raises on failure (never silent)."""
+def send_email(
+    to: str,
+    subject: str,
+    body: str,
+    attachments: list[tuple[str, bytes, str]] | None = None,
+) -> dict:
+    """Send one email. *attachments* = [(filename, bytes, mime), ...].
+
+    Raises on failure (never silent).
+    """
     creds, sender = _credentials()
     msg = EmailMessage()
     msg["To"] = to
     msg["From"] = sender or "me"
     msg["Subject"] = subject
     msg.set_content(body)
+    for filename, data, mime in attachments or []:
+        maintype, _, subtype = mime.partition("/")
+        msg.add_attachment(
+            data, maintype=maintype or "application", subtype=subtype or "octet-stream",
+            filename=filename,
+        )
     raw = base64.urlsafe_b64encode(msg.as_bytes()).decode("ascii")
     resp = requests.post(
         _SEND_URL,

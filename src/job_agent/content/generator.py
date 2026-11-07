@@ -129,6 +129,11 @@ def _tokenize(text: str) -> set[str]:
     }
 
 
+def _lang_name(base: str, lang: str) -> str:
+    """Prefer <name>_<lang>.md; the template set falls back to base names."""
+    return f"{base}_{lang}" if lang != "en" else base
+
+
 def _select_evidence(
     candidate: CandidateProfile, requirements: JobRequirements
 ) -> list[str]:
@@ -282,8 +287,10 @@ def generate_documents(
     ai_client=None,
     matched_skills: list[str] | None = None,
     prompt_version: str = "2026-11-06",
+    language: str = "en",
 ) -> GeneratedDocuments:
     """Render grounded documents. Deterministic/offline by default; never raises."""
+    lang = (language or "en").strip().lower()
     warnings: list[str] = []
 
     def record(items) -> None:
@@ -319,12 +326,20 @@ def generate_documents(
 
         name = str(cc.get("name") or "Candidate")
         email = str(cc.get("email") or "")
-        greeting = (
-            f"Dear {job['company']} hiring team,"
-            if job.get("company")
-            else "Dear Hiring Manager,"
-        )
-        signoff = f"Best regards,\n{name}" + (f"\n{email}" if email else "")
+        if lang == "id":
+            greeting = (
+                f"Kepada Tim Rekrutmen {job['company']},"
+                if job.get("company")
+                else "Kepada Tim Rekrutmen,"
+            )
+            signoff = f"Hormat saya,\n{name}" + (f"\n{email}" if email else "")
+        else:
+            greeting = (
+                f"Dear {job['company']} hiring team,"
+                if job.get("company")
+                else "Dear Hiring Manager,"
+            )
+            signoff = f"Best regards,\n{name}" + (f"\n{email}" if email else "")
 
         # Only named keys -- spreading the flat ``as_context()`` dict would put
         # a ``name`` key in **ctx and collide with ``render(self, name, ...)``.
@@ -341,16 +356,16 @@ def generate_documents(
             "signoff": signoff,
         }
 
-        resume = template_set.render("resume_master", **ctx)
-        cover = template_set.render("cover_letter", **ctx)
-        email_rendered = template_set.render("email_apply", **ctx)
+        resume = template_set.render(_lang_name("resume_master", lang), **ctx)
+        cover = template_set.render(_lang_name("cover_letter", lang), **ctx)
+        email_rendered = template_set.render(_lang_name("email_apply", lang), **ctx)
         default_subject = (
             f"{job.get('title') or 'Role'} at {job.get('company') or 'the company'}"
             f" — {name}"
         )
         email_subject, email_body = _split_email(email_rendered, default_subject)
-        note = template_set.render("connection_note", **ctx)
-        gig = template_set.render("gig_profile", **ctx)
+        note = template_set.render(_lang_name("connection_note", lang), **ctx)
+        gig = template_set.render(_lang_name("gig_profile", lang), **ctx)
 
         # Grounding is ALWAYS run on the deterministic documents.
         for rendered in (resume, cover, email_body, note, gig):

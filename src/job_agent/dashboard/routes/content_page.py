@@ -136,6 +136,7 @@ def preview():
                 template_set=_templates(),
                 ai_client=None,
                 prompt_version=s.content.prompt_version,
+                language=(request.args.get("lang") or s.content.language),
             )
             warnings = list(docs.warnings)
     return render_template(
@@ -170,12 +171,22 @@ def send_email():
         template_set=_templates(),
         ai_client=None,
         prompt_version=s.content.prompt_version,
+        language=(request.form.get("lang") or s.content.language),
     )
 
+    from job_agent.content.render_pdf import render_pdf
     from job_agent.integrations.gmail_send import send_email as gmail_send
 
+    resume_pdf = render_pdf(docs.resume_markdown, title=docs.email_subject)
     try:
-        result = gmail_send(to_addr, docs.email_subject, docs.email_body)
+        result = gmail_send(
+            to_addr,
+            docs.email_subject,
+            docs.email_body,
+            attachments=[
+                ("resume.pdf", resume_pdf, "application/pdf"),
+            ],
+        )
     except Exception as exc:  # surfaced, never swallowed
         flash(f"Send failed: {type(exc).__name__}: {exc}", "danger")
         return redirect(url_for("content_page.preview", job_id=job_id))
