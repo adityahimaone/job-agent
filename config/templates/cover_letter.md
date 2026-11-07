@@ -1,7 +1,7 @@
 {# How to edit: Three short paragraphs. Only use grounded facts from candidate_profile.md. Variables: candidate.*, job.*, requirements.*, evidence (list), matched_skills (list), greeting, signoff. #}
 {{ greeting }}
 
-I'm {{ candidate.name }}, a {{ candidate.headline }} based in {{ candidate.location }} ({{ candidate.timezone }}), applying for the {{ job.title }} role at {{ job.company }}. With {{ candidate.years_experience }}+ years of experience building production web applications—leading frontend architecture for a 15K+ user job-seeker platform and shipping features across a multi-product B2B SaaS HRIS ecosystem—I focus heavily on {{ requirements.must_have|join(', ') }}{% if extra_skills %} and bring hands-on experience with {{ extra_skills|join(', ') }}{% endif %}.
+I'm {{ candidate.name }}, a {{ candidate.headline }} based in {{ candidate.location }} ({{ candidate.timezone }}), applying for the {{ job.title.split('|')[0].split(' - Remote')[0].strip() }} role at {{ job.company }}. With {{ candidate.years_experience }}+ years of experience building scalable production web applications, design systems, and end-to-end frontend architectures—I focus heavily on {{ requirements.must_have|join(', ') }}{% if extra_skills %} and bring hands-on experience with {{ extra_skills|join(', ') }}{% endif %}.
 
 A few highlights from my production experience that line up with what you're looking for:
 {% for e in evidence %}

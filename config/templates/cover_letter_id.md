@@ -1,7 +1,7 @@
 {# How to edit: Bahasa Indonesia. Tiga paragraf pendek. Fakta hanya dari candidate_profile.md. #}
 {{ greeting }}
 
-Saya {{ candidate.name }}, {{ candidate.headline }} yang berbasis di {{ candidate.location }} ({{ candidate.timezone }}), bermaksud melamar posisi {{ job.title }} di {{ job.company }}. Dengan pengalaman {{ candidate.years_experience }}+ tahun membangun aplikasi web production—baik memimpin pengembangan frontend pada platform pencari kerja berkapasitas 15.000+ pengguna maupun mengembangkan ekosistem B2B SaaS HRIS—saya berfokus pada {{ requirements.must_have|join(', ') }}{% if extra_skills %} serta memiliki pengalaman langsung dengan {{ extra_skills|join(', ') }}{% endif %}.
+Saya {{ candidate.name }}, {{ candidate.headline }} yang berbasis di {{ candidate.location }} ({{ candidate.timezone }}), bermaksud melamar posisi {{ job.title.split('|')[0].strip() }} di {{ job.company }}. Dengan pengalaman {{ candidate.years_experience }}+ tahun membangun aplikasi web production, saya berfokus pada {{ requirements.must_have|join(', ') }}{% if extra_skills %} serta memiliki pengalaman langsung dengan {{ extra_skills|join(', ') }}{% endif %}.
 
 Beberapa pencapaian relevan yang selaras dengan kebutuhan tim Anda meliputi:
 {% for e in evidence %}

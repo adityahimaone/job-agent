@@ -3,12 +3,13 @@ Subject: {{ job.title }} at {{ job.company }} — {{ candidate.name }}
 
 {{ greeting }}
 
-I'm reaching out directly regarding the {{ job.title }} role at {{ job.company }}. I'm a {{ candidate.headline }} with {{ candidate.years_experience }}+ years of experience building production web applications—ranging from leading frontend development on a 15K+ user job-seeker platform to shipping core features across a multi-product B2B SaaS HRIS ecosystem.
+I'm reaching out directly regarding the {{ job.title.split('|')[0].split(' - Remote')[0].strip() }} role at {{ job.company }}. I'm a {{ candidate.headline }} with {{ candidate.years_experience }}+ years of experience building scalable production web applications, design systems, and end-to-end frontend architectures.
 
 A few relevant highlights from my work:
 {% for e in evidence %}
 - {{ e }}
 {% endfor %}
+
 My core stack lines up directly with your requirements: {{ matched_skills|join(', ') }}. I'm available for {{ candidate.constraints.availability }} and align comfortably with {{ candidate.constraints.timezone_alignment }}.
 
 I've attached my resume for full context, and you can review my live work and repositories here:

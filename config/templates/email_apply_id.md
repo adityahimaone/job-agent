@@ -3,7 +3,7 @@ Subject: Lamaran: {{ job.title }} di {{ job.company }} — {{ candidate.name }}
 
 {{ greeting }}
 
-Saya menghubungi Anda terkait lowongan {{ job.title }} di {{ job.company }}. Sebagai {{ candidate.headline }} dengan pengalaman {{ candidate.years_experience }}+ tahun membangun aplikasi web production—mulai dari memimpin pengembangan frontend pada platform pencari kerja (15.000+ pengguna) hingga ekosistem produk B2B SaaS HRIS—latar belakang teknis saya sangat selaras dengan kebutuhan tim Anda, khususnya pada {{ matched_skills|join(', ') }}.
+Saya menghubungi Anda terkait lowongan {{ job.title.split('|')[0].strip() }} di {{ job.company }}. Sebagai {{ candidate.headline }} dengan pengalaman {{ candidate.years_experience }}+ tahun membangun aplikasi web production, latar belakang teknis saya sangat selaras dengan kebutuhan tim Anda—khususnya pada {{ matched_skills|join(', ') }}.
 
 Beberapa rekam jejak relevan dari proyek yang saya tangani:
 {% for e in evidence %}

@@ -55,9 +55,9 @@ constraints:
   min_hourly_rate: 30
   currency: USD
   timezone_alignment: "GMT+7 (flexible overlap across APAC & EU hours)"
-  timezone_alignment_id: "WIB / GMT+7 (fleksibel untuk kolaborasi lintas zona waktu)"
+  timezone_alignment_id: "WIB / GMT+7"
   availability: "remote roles (full-time, contract, or part-time)"
-  availability_id: "pekerjaan remote maupun kolaborasi fleksibel (full-time, contract, atau part-time)"
+  availability_id: "remote maupun kolaborasi fleksibel (full-time, contract, atau part-time)"
 
 # ── Extra front-matter keys ──────────────────────────────────────────────────
 # Any key NOT in the core set above is exposed verbatim to templates.
