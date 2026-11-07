@@ -3,6 +3,7 @@
 # Edit these freely. They become template variables like {{ candidate.name }}.
 name: Aditya Himawan
 email: adityahimaone@gmail.com
+phone: "+62 853-1167-9409"
 location: Jakarta, Indonesia
 timezone: GMT+7
 headline: "Design Engineer / Frontend Engineer"
@@ -13,6 +14,8 @@ years_experience: 4
 # Any URL used in a generated document must be declared here or in the facts.
 links:
   portfolio: https://adityahimaone.space
+  projects: https://adityahimaone.space/projects
+  design_system: https://adityahimaone.space/design-system
   github: https://github.com/adityahimaone
   linkedin: https://linkedin.com/in/adityahimaone
 
@@ -77,31 +80,19 @@ used. See `docs/TEMPLATES.md` before editing.
 
 ## Verified facts
 
-# [Frontend Architecture & High-Scale Delivery]
-- Led frontend development for a production job-seeker platform serving 15K+ users, architecting a scalable codebase with Next.js SSR, feature-based architecture, Zustand, and React Query.
-- Built and launched Campus Connect within 3 months as part of the PT Fatiha Sakti product team using scalable frontend architecture, Next.js SSR, and reusable component design.
-
-# [B2B SaaS, Fullstack & Workflow Automation]
-- Developed and maintained core frontend features across a multi-product B2B SaaS HRIS ecosystem, and implemented automated KPI tracking workflows in 3 months that eliminated manual HR reporting.
-- Resolved critical production bottlenecks and optimized frontend performance for a tRPC and Prisma HR management system at 80&Company (Kyoto, Japan).
-
-# [Design Engineering & UI Systems]
-- Built responsive e-commerce, NFT, and high-conversion landing-page interfaces using React, Next.js, and Tailwind CSS with reusable UI components.
-- Own frontend architecture end-to-end—bridging reusable design systems, interactive motion (GSAP/Framer Motion), scalable state management, and AI/LLM workflow automation.
+- Frontend Architecture & Scale: Led frontend development for a production job-seeker platform serving 15K+ users using Next.js SSR, feature-based architecture, Zustand, and React Query.
+- End-to-End Product Delivery: Built and launched Campus Connect within 3 months using scalable frontend architecture, Next.js SSR, and reusable component design.
+- B2B SaaS & Workflow Automation: Developed core features across a multi-product B2B SaaS HRIS ecosystem and implemented automated KPI tracking workflows in 3 months that eliminated manual HR reporting.
+- API Integration & Performance: Resolved critical production bottlenecks and optimized frontend performance for a tRPC and Prisma HR management system at 80&Company (Kyoto, Japan).
+- UI/UX Translation & Design Systems: Built responsive e-commerce, NFT, and landing-page interfaces using React, Next.js, Tailwind CSS, and custom reusable design systems.
 
 ## Verified facts (ID)
 
-# [Arsitektur Frontend & Skala Produksi]
-- Memimpin pengembangan frontend pada platform pencari kerja berskala produksi (15.000+ pengguna) menggunakan Next.js SSR, feature-based architecture, Zustand, dan React Query.
-- Membangun dan merilis platform Campus Connect dalam waktu 3 bulan menggunakan arsitektur frontend yang scalable, Next.js SSR, dan komponen reusable.
-
-# [B2B SaaS, Fullstack & Otomatisasi]
-- Mengembangkan fitur inti pada ekosistem produk B2B SaaS HRIS berskala enterprise serta merancang otomatisasi KPI dalam 3 bulan yang memangkas proses pelaporan manual tim HR.
-- Meningkatkan reliabilitas produksi dan mengoptimalkan performa alur data frontend pada sistem manajemen HR berbasis tRPC dan Prisma di 80&Company (Kyoto, Jepang).
-
-# [Design Engineering & Sistem UI]
-- Membangun antarmuka e-commerce, platform NFT, dan landing page responsif menggunakan React, Next.js, dan Tailwind CSS dengan arsitektur komponen yang reusable.
-- Menangani arsitektur frontend secara end-to-end—menggabungkan design systems, animasi interaktif (GSAP/Framer Motion), state management, dan otomatisasi workflow berbasis AI/LLM.
+- Arsitektur Frontend & Skala Produksi: Memimpin pengembangan frontend pada platform pencari kerja (15.000+ pengguna) menggunakan Next.js SSR, feature-based architecture, Zustand, dan React Query.
+- Eksekusi Produk End-to-End: Membangun dan merilis platform Campus Connect dalam 3 bulan menggunakan arsitektur frontend yang scalable dan komponen UI yang reusable.
+- Ekosistem B2B SaaS & Otomatisasi: Mengembangkan fitur inti pada produk B2B SaaS HRIS serta merancang otomatisasi KPI dalam 3 bulan yang memangkas proses pelaporan manual tim HR.
+- Integrasi API & Optimasi Performa: Meningkatkan reliabilitas produksi dan performa alur data frontend pada sistem manajemen HR berbasis tRPC dan Prisma di 80&Company (Kyoto, Jepang).
+- Translasi UI/UX & Design System: Membangun antarmuka aplikasi web yang responsif dan presisi menggunakan React, Next.js, Tailwind CSS, serta dokumentasi Design System mandiri.
 
 ## Experience
 

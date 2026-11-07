@@ -3,20 +3,23 @@ Subject: Lamaran: {{ job.title }} di {{ job.company }} — {{ candidate.name }}
 
 {{ greeting }}
 
-Saya menghubungi Anda terkait lowongan {{ job.title.split('|')[0].strip() }} di {{ job.company }}. Sebagai {{ candidate.headline }} dengan pengalaman {{ candidate.years_experience }}+ tahun membangun aplikasi web production, latar belakang teknis saya sangat selaras dengan kebutuhan tim Anda—khususnya pada {{ matched_skills|join(', ') }}.
+Melalui email ini, saya bermaksud mengajukan lamaran untuk posisi {{ job.title.split('|')[0].strip() }} di {{ job.company }}. Saya adalah {{ candidate.headline }} dengan pengalaman {{ candidate.years_experience }}+ tahun dalam membangun aplikasi web skala produksi yang responsif, scalable, dan mudah dipelihara (maintainable)—khususnya menggunakan {{ matched_skills|join(', ') }}.
 
-Beberapa rekam jejak relevan dari proyek yang saya tangani:
+Beberapa rekam jejak dan keahlian teknis saya yang selaras dengan kebutuhan di {{ job.company }}:
 {% for e in evidence %}
 - {{ e }}
 {% endfor %}
 
-Dalam keseharian teknis, saya berfokus pada arsitektur frontend yang scalable, design systems yang reusable, serta eksekusi fitur secara end-to-end. Saat ini saya terbuka untuk skema kerja {{ candidate.constraints.availability_id or candidate.constraints.availability }} dan terbiasa berkolaborasi lintas zona waktu ({{ candidate.constraints.timezone_alignment_id or candidate.constraints.timezone_alignment }}).
+Saat ini saya terbuka untuk skema kerja {{ candidate.constraints.availability_id or candidate.constraints.availability }} dan terbiasa bekerja dalam tim lintas fungsi ({{ candidate.constraints.timezone_alignment_id or candidate.constraints.timezone_alignment }}).
 
-Sebagai bahan pertimbangan, saya lampirkan CV terbaru saya pada email ini. Bapak/Ibu juga dapat meninjau hasil kerja dan kode saya melalui tautan berikut:
-- Portofolio: {{ candidate.links.portfolio }}
-- GitHub: {{ candidate.links.github }}
-- LinkedIn: {{ candidate.links.linkedin }}
+Sebagai bahan pertimbangan dan tinjauan teknis, Bapak/Ibu dapat mengeksplorasi hasil karya, dokumentasi sistem desain, serta repositori kode yang telah saya bangun melalui tautan berikut:
+- Website & Showcase Utama: {{ candidate.links.portfolio }}
+- Portofolio Proyek Pilihan: {{ candidate.links.projects }}
+- Dokumentasi Design System & UI: {{ candidate.links.design_system }}
+- Repositori GitHub: {{ candidate.links.github }}
 
-Terima kasih atas waktu dan perhatian Bapak/Ibu. Saya sangat terbuka untuk jadwal diskusi singkat apabila kualifikasi saya sesuai dengan kebutuhan {{ job.company }}.
+Bersama email ini turut saya lampirkan CV terbaru saya. Terima kasih atas waktu dan perhatian Bapak/Ibu. Saya sangat antusias apabila diberikan kesempatan untuk berdiskusi lebih lanjut dan mendemonstrasikan proyek-proyek tersebut secara langsung.
 
 {{ signoff }}
+WhatsApp: {{ candidate.phone }}
+LinkedIn: {{ candidate.links.linkedin }}

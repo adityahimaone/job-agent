@@ -26,6 +26,7 @@ log = get_logger(__name__)
 _CORE_KEYS = {
     "name",
     "email",
+    "phone",
     "location",
     "timezone",
     "headline",
@@ -249,6 +250,7 @@ class CandidateProfile:
 
     name: str = "Candidate"
     email: str = ""
+    phone: str = ""
     location: str = ""
     timezone: str = ""
     links: dict[str, str] = field(default_factory=dict)
@@ -294,6 +296,7 @@ class CandidateProfile:
         ctx: dict[str, object] = {
             "name": self.name,
             "email": self.email,
+            "phone": self.phone,
             "location": self.location,
             "timezone": self.timezone,
             "links": links,
@@ -359,6 +362,7 @@ def _build(raw: str) -> CandidateProfile:
     return CandidateProfile(
         name=str(fm.get("name") or "Candidate"),
         email=str(fm.get("email") or ""),
+        phone=str(fm.get("phone") or ""),
         location=str(fm.get("location") or ""),
         timezone=str(fm.get("timezone") or ""),
         links=_as_str_dict(fm.get("links")),
