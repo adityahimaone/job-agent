@@ -706,6 +706,7 @@ def run_pipeline(
             "ziprecruiter",
             "dice",
             "wellfound",
+            "dealls",
         ]:
             cfg = getattr(settings.platforms, p)
             if cfg.enabled:
