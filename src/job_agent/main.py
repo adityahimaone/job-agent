@@ -42,7 +42,15 @@ def cmd_init_db(ctx: click.Context) -> None:
 @click.argument(
     "platform",
     type=click.Choice(
-        ["linkedin", "indeed", "glassdoor", "ziprecruiter", "dice", "wellfound", "dealls"]
+        [
+            "linkedin",
+            "indeed",
+            "glassdoor",
+            "ziprecruiter",
+            "dice",
+            "wellfound",
+            "dealls",
+        ]
     ),
 )
 @click.option("--username", "-u", prompt=True, help="Platform username/email.")
@@ -75,7 +83,15 @@ def cmd_add_credential(ctx: click.Context, platform: str, username: str) -> None
 @click.option(
     "--platform",
     type=click.Choice(
-        ["linkedin", "indeed", "glassdoor", "ziprecruiter", "dice", "wellfound", "dealls"]
+        [
+            "linkedin",
+            "indeed",
+            "glassdoor",
+            "ziprecruiter",
+            "dice",
+            "wellfound",
+            "dealls",
+        ]
     ),
 )
 @click.option("--dry-run", is_flag=True, help="Discover and match only, don't apply.")
@@ -151,7 +167,15 @@ def cmd_apply_approved(ctx: click.Context, dry_run: bool, live: bool) -> None:
     "-P",
     default="linkedin",
     type=click.Choice(
-        ["linkedin", "indeed", "glassdoor", "ziprecruiter", "dice", "wellfound", "dealls"]
+        [
+            "linkedin",
+            "indeed",
+            "glassdoor",
+            "ziprecruiter",
+            "dice",
+            "wellfound",
+            "dealls",
+        ]
     ),
 )
 @click.option("--query", "-q", required=True, help="Search query.")

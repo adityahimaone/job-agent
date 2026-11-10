@@ -63,9 +63,7 @@ def markdown_to_html(md: str, title: str = "Resume") -> str:
         "border-bottom:1px solid #999;padding-bottom:2px;}h3{font-size:11.5pt;margin:0.9em 0 0.2em;}"
         "p{margin:0.25em 0;}ul{margin:0.25em 0 0.7em;padding-left:1.2em;}"
         "hr{border:none;border-top:1px solid #ccc;}a{color:#2563eb;text-decoration:none;}"
-        "</style></head><body>"
-        + "\n".join(lines)
-        + "</body></html>"
+        "</style></head><body>" + "\n".join(lines) + "</body></html>"
     )
 
 

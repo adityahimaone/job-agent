@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -63,7 +64,10 @@ class TestGeminiDefensiveParsing:
 class TestOpenAICompatDefensiveParsing:
     def test_empty_choices_raises(self, client):
         mock_resp = MagicMock()
-        mock_resp.json.return_value = {"choices": [], "error": "no content"}
+        body = {"choices": [], "error": "no content"}
+        mock_resp.json.return_value = body
+        # _complete_openai_compat parses resp.text, not resp.json().
+        mock_resp.text = json.dumps(body)
         mock_resp.raise_for_status = MagicMock()
 
         with patch.object(client._http, "post", return_value=mock_resp):
@@ -74,7 +78,10 @@ class TestOpenAICompatDefensiveParsing:
 
     def test_no_choices_key_raises(self, client):
         mock_resp = MagicMock()
-        mock_resp.json.return_value = {"error": "model not found"}
+        body = {"error": "model not found"}
+        mock_resp.json.return_value = body
+        # _complete_openai_compat parses resp.text, not resp.json().
+        mock_resp.text = json.dumps(body)
         mock_resp.raise_for_status = MagicMock()
 
         with patch.object(client._http, "post", return_value=mock_resp):
@@ -85,7 +92,10 @@ class TestOpenAICompatDefensiveParsing:
 
     def test_empty_content_raises(self, client):
         mock_resp = MagicMock()
-        mock_resp.json.return_value = {"choices": [{"message": {"content": ""}}]}
+        body = {"choices": [{"message": {"content": ""}}]}
+        mock_resp.json.return_value = body
+        # _complete_openai_compat parses resp.text, not resp.json().
+        mock_resp.text = json.dumps(body)
         mock_resp.raise_for_status = MagicMock()
 
         with patch.object(client._http, "post", return_value=mock_resp):

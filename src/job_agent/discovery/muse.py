@@ -180,9 +180,11 @@ def parse_muse_file(path: str | Path) -> tuple[list[JobPosting], list[str]]:
         elif isinstance(data, list):
             rows = data
         else:
-            raise ValueError("JSON must be a job object, a list, or {\"jobs\": [...]}")
+            raise ValueError('JSON must be a job object, a list, or {"jobs": [...]}')
     else:
-        raise ValueError(f"Unsupported Muse jobs file type: {p.suffix} (use .json or .csv)")
+        raise ValueError(
+            f"Unsupported Muse jobs file type: {p.suffix} (use .json or .csv)"
+        )
 
     postings: list[JobPosting] = []
     errors: list[str] = []
@@ -269,9 +271,7 @@ def import_muse_jobs(
     stats["duplicates"] += len(postings) - len(deduped)
 
     # 2. Dedup against the DB + cross-platform duplicates.
-    existing = job_repo.filter_existing(
-        [(p.external_id, p.platform) for p in deduped]
-    )
+    existing = job_repo.filter_existing([(p.external_id, p.platform) for p in deduped])
     new: list[JobPosting] = []
     for posting in deduped:
         key = (posting.external_id, posting.platform.value)
@@ -308,8 +308,12 @@ def import_muse_jobs(
                 for posting in new:
                     result = matcher.match(posting, profile)
                     stats["scores"].append(
-                        {"title": posting.title, "company": posting.company,
-                         "score": result.score, "reasoning": result.reasoning}
+                        {
+                            "title": posting.title,
+                            "company": posting.company,
+                            "score": result.score,
+                            "reasoning": result.reasoning,
+                        }
                     )
                     stats["matched"] += 1
                     if result.score >= settings.matching.review_threshold:
@@ -358,17 +362,22 @@ def import_muse_jobs(
         for job in created:
             posting = _posting_from_job(job)
             result = match_job(
-                job=job, posting=posting, matcher=matcher,
-                match_repo=match_repo, profile=profile,
+                job=job,
+                posting=posting,
+                matcher=matcher,
+                match_repo=match_repo,
+                profile=profile,
             )
             stats["matched"] += 1
             stats["scores"].append(
-                {"title": job.title, "company": job.company,
-                 "score": result.score, "reasoning": result.reasoning}
+                {
+                    "title": job.title,
+                    "company": job.company,
+                    "score": result.score,
+                    "reasoning": result.reasoning,
+                }
             )
-            decision = decide_job(
-                job, result, settings, require_approval=True
-            )
+            decision = decide_job(job, result, settings, require_approval=True)
             if decision == "queue":
                 stats["queued"] += 1
             else:

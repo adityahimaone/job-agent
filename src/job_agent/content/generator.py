@@ -170,8 +170,10 @@ def _select_evidence(
     add(primary)
     if not pool:  # keep the generator usable on profiles that lack ID facts
         add(secondary or getattr(candidate, "facts", None))
-    for role in (getattr(candidate, "roles_id", None) or []) if lang == "id" else (
-        getattr(candidate, "roles", None) or []
+    for role in (
+        (getattr(candidate, "roles_id", None) or [])
+        if lang == "id"
+        else (getattr(candidate, "roles", None) or [])
     ):
         if isinstance(role, dict):
             add(role.get("bullets"))
@@ -323,7 +325,8 @@ def generate_documents(
         # the same word the sentence repeats itself ("focus on React ... with
         # React"). Top up from the grounded skill list, minus must_haves.
         top_up = [
-            s for s in cc.get("skills_flat", [])
+            s
+            for s in cc.get("skills_flat", [])
             if s not in ms and s not in requirements.must_have
         ]
         for skill in top_up:

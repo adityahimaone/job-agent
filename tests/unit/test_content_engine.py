@@ -146,7 +146,10 @@ class TestCandidateProfile:
         # `education` is an extra front-matter key, surfaced automatically.
         assert isinstance(ctx.get("education"), list)
         assert ctx["years_experience_label"] == "4+ years"
-        assert ctx["constraints"]["availability"] == "remote roles (full-time, contract, or part-time)"
+        assert (
+            ctx["constraints"]["availability"]
+            == "remote roles (full-time, contract, or part-time)"
+        )
         assert profile.grounded_facts_text().startswith("- ")
 
 
