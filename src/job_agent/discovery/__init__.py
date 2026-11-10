@@ -14,6 +14,19 @@ from job_agent.discovery.feeds import (
     default_feed_specs,
     load_feed_specs,
 )
+from job_agent.discovery.lanes import (
+    DEFAULT_EGO_LOCATIONS,
+    DEFAULT_EGO_PLATFORMS,
+    DEFAULT_EGO_QUERIES,
+    DEFAULT_MUSE_LOCATIONS,
+    DEFAULT_MUSE_QUERIES,
+    LANE_EGO,
+    LANE_MUSE,
+    new_muse_jobs,
+    resolve_lane_order,
+    run_muse_first,
+    should_fallback_to_ego,
+)
 from job_agent.discovery.muse import (
     MUSE_SOURCE,
     import_muse_jobs,
@@ -34,4 +47,15 @@ __all__ = [
     "import_muse_jobs",
     "parse_muse_file",
     "to_posting",
+    "DEFAULT_EGO_LOCATIONS",
+    "DEFAULT_EGO_PLATFORMS",
+    "DEFAULT_EGO_QUERIES",
+    "DEFAULT_MUSE_LOCATIONS",
+    "DEFAULT_MUSE_QUERIES",
+    "LANE_EGO",
+    "LANE_MUSE",
+    "new_muse_jobs",
+    "resolve_lane_order",
+    "run_muse_first",
+    "should_fallback_to_ego",
 ]

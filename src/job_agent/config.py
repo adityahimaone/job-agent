@@ -79,6 +79,50 @@ class GigsConfig(BaseModel):
     remote_only: bool = True
 
 
+class DiscoveryConfig(BaseModel):
+    """Ordered discovery lanes: Muse primary, Ego Lite fallback.
+
+    The Muse lane is driven from *outside* job-agent (a Muse cron run
+    writes a jobs file; see docs/MUSE_CRON.md) because job-agent code
+    cannot call Muse's browser directly. The Ego lane is the fallback
+    and only runs when the Muse import yields zero NEW jobs.
+    """
+
+    primary: str = "muse"
+    fallback: str = "ego"
+    fallback_enabled: bool = True
+    fallback_on_zero_new: bool = True
+    muse_queries: list[str] = Field(
+        default_factory=lambda: [
+            "Frontend Engineer React",
+            "Design Engineer",
+            "React Developer",
+            "Frontend Engineer Design Systems",
+        ]
+    )
+    muse_locations: list[str] = Field(
+        default_factory=lambda: [
+            "Singapore",
+            "Remote",
+            "Jakarta, Indonesia",
+            "Kuala Lumpur, Malaysia",
+            "Bangkok, Thailand",
+            "Vietnam",
+            "Philippines",
+        ]
+    )
+    ego_queries: list[str] = Field(
+        default_factory=lambda: [
+            "Frontend Engineer",
+            "Design Engineer",
+            "React Developer",
+        ]
+    )
+    ego_locations: list[str] = Field(default_factory=lambda: ["Singapore", "Remote"])
+    ego_platforms: list[str] = Field(default_factory=lambda: ["linkedin", "dealls"])
+    ego_limit_per_query: int = 10
+
+
 class ResumeConfig(BaseModel):
     master_resume: str = "config/resumes/master.pdf"
     cover_letter_tone: str = "professional"
@@ -280,6 +324,7 @@ class Settings(BaseSettings):
     content: ContentConfig = ContentConfig()
     sheets: SheetsConfig = SheetsConfig()
     feeds: FeedsConfig = FeedsConfig()
+    discovery: DiscoveryConfig = DiscoveryConfig()
     gigs: GigsConfig = GigsConfig()
 
     def model_post_init(self, __context) -> None:

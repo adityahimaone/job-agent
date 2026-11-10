@@ -391,6 +391,134 @@ def cmd_muse_import(ctx, file, profile, dry_run, no_score, limit):
         click.echo(f"  {s['score']:.2f}  {s['title']} @ {s['company']}")
 
 
+@cmd_muse.command("run")
+@click.argument("file", type=click.Path(dir_okay=False))
+@click.option(
+    "--profile",
+    "-p",
+    default="config/profiles/aditya.yaml",
+    help="Profile whose filters / thresholds score the import.",
+)
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Parse, dedup and (unless --no-score) score in memory; write nothing.",
+)
+@click.option(
+    "--no-score",
+    is_flag=True,
+    help="Store as DISCOVERED without scoring; the next cron run matches them.",
+)
+@click.option("--limit", "-n", default=0, help="Max jobs to import (0 = all).")
+@click.option(
+    "--with-ego-fallback",
+    is_flag=True,
+    help=(
+        "If the Muse import yields zero NEW jobs, fall back to Ego Lite "
+        "discovery (LinkedIn + Dealls) for the configured queries. "
+        "Without this flag Ego never runs. In dry-run mode the fallback "
+        "is reported, never executed."
+    ),
+)
+@click.pass_context
+def cmd_muse_run(ctx, file, profile, dry_run, no_score, limit, with_ego_fallback):
+    """Muse-primary discovery run, with Ego Lite as fallback.
+
+    Imports jobs Muse found from a JSON or CSV file (the fusion lane),
+    then — only when that import yields zero NEW jobs and
+    --with-ego-fallback was passed — runs Ego Lite discovery for the
+    same kind of roles. Import never applies; the best outcome is QUEUED.
+    A missing or empty Muse file counts as zero new jobs.
+    """
+    from job_agent.config import load_profile
+    from job_agent.db.session import get_session, init_db
+    from job_agent.discovery.lanes import run_muse_first
+    from job_agent.discovery.muse import import_muse_jobs, parse_muse_file
+    from job_agent.orchestrator.pipeline import discover_jobs
+
+    settings = ctx.obj["settings"]
+    profile_data = load_profile(profile)
+    init_db(settings)
+    session = get_session(settings)
+    try:
+        try:
+            postings, errors = parse_muse_file(file)
+        except (FileNotFoundError, ValueError) as exc:
+            click.echo(f"muse file unusable, treating as zero new jobs: {exc}")
+            postings, errors = [], [str(exc)]
+        for err in errors:
+            click.echo(f"skipped: {err}", err=True)
+        if limit and limit > 0:
+            postings = postings[:limit]
+
+        def muse_import():
+            return import_muse_jobs(
+                session,
+                postings,
+                profile_data,
+                settings,
+                dry_run=dry_run,
+                score=not no_score,
+            )
+
+        def ego_search():
+            cfg = settings.discovery
+            stored_total = 0
+            for platform in cfg.ego_platforms:
+                for query in cfg.ego_queries:
+                    for location in cfg.ego_locations:
+                        try:
+                            stored = discover_jobs(
+                                settings=settings,
+                                platform_name=platform,
+                                query=query,
+                                location=location,
+                                limit=cfg.ego_limit_per_query,
+                            )
+                        except Exception as exc:
+                            click.echo(
+                                f"ego fallback failed "
+                                f"({platform} / {query} / {location}): {exc}",
+                                err=True,
+                            )
+                            continue
+                        click.echo(
+                            f"ego fallback: {platform} {query!r} "
+                            f"({location}) stored {len(stored)}"
+                        )
+                        stored_total += len(stored)
+            return stored_total
+
+        report = run_muse_first(
+            muse_import=muse_import,
+            ego_search=ego_search,
+            dry_run=dry_run,
+            fallback_requested=with_ego_fallback,
+            fallback_enabled=settings.discovery.fallback_enabled,
+            fallback_on_zero_new=settings.discovery.fallback_on_zero_new,
+            ego_enabled=settings.ego.enabled,
+        )
+        session.commit()
+    finally:
+        session.close()
+
+    stats = report["muse_stats"]
+    click.echo(
+        f"Muse import: parsed={stats['parsed']} imported={stats['imported']} "
+        f"duplicates={stats['duplicates']} "
+        f"cross_platform_duplicates={stats['cross_platform_duplicates']} "
+        f"matched={stats['matched']} queued={stats['queued']} "
+        f"skipped={stats['skipped']} deferred_no_ai={stats['deferred_no_ai']}"
+    )
+    if dry_run:
+        click.echo(f"dry-run: would_import={stats.get('would_import', 0)}")
+    for s in stats["scores"]:
+        click.echo(f"  {s['score']:.2f}  {s['title']} @ {s['company']}")
+    click.echo(f"lanes: {report['lane']} | fallback: {report['fallback_reason']}")
+    if report["ego_ran"]:
+        click.echo(f"ego fallback: stored {report['ego_jobs']} jobs")
+
+
 @cli.group("bot")
 @click.pass_context
 def cmd_bot(ctx: click.Context) -> None:

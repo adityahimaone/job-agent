@@ -64,6 +64,38 @@ gigs:
   min_hourly_rate: 20.0
   remote_only: true
 
+# Discovery lanes: Muse is primary, Ego Lite on the Mac is the fallback.
+# The Muse lane is driven by an external Muse cron run (docs/MUSE_CRON.md)
+# that writes a jobs file for `job-agent muse run`. Ego only runs when the
+# Muse import yields zero NEW jobs (see docs/MUSE_PRIMARY_EGO_FALLBACK.md).
+discovery:
+  primary: muse
+  fallback: ego
+  fallback_enabled: true
+  fallback_on_zero_new: true
+  muse_queries:
+    - "Frontend Engineer React"
+    - "Design Engineer"
+    - "React Developer"
+    - "Frontend Engineer Design Systems"
+  muse_locations:
+    - "Singapore"
+    - "Remote"
+    - "Jakarta, Indonesia"
+    - "Kuala Lumpur, Malaysia"
+    - "Bangkok, Thailand"
+    - "Vietnam"
+    - "Philippines"
+  ego_queries:
+    - "Frontend Engineer"
+    - "Design Engineer"
+    - "React Developer"
+  ego_locations:
+    - "Singapore"
+    - "Remote"
+  ego_platforms: [linkedin, dealls]
+  ego_limit_per_query: 10
+
 ego:
   # Drive the person's own ego(lite) browser instead of Playwright.
   # Running on the VPS: reach the Mac's ego(lite) over ssh (Tailscale).
