@@ -106,7 +106,9 @@ class EgoClient:
         return self.host or ""
 
     def _argv(self) -> list[str]:
-        command = f"'{self.binary}' nodejs"
+        # Non-interactive ssh has no ~/.local/bin on PATH (where ego-browser
+        # lives on the Mac), so prepend it explicitly for the remote case.
+        command = f"export PATH=\"$HOME/.local/bin:$PATH\"; '{self.binary}' nodejs"
         if not self.host:
             return ["bash", "-lc", command]
         return [

@@ -56,11 +56,17 @@ class EgoDriver(PlatformDriver):
         self._require_human_submit = bool(getattr(cfg, "require_human_submit", True))
 
         configured_binary = getattr(cfg, "binary", "") or ""
-        try:
-            binary = resolve_ego_binary(configured_binary)
-        except EgoError:
-            # Resolution can fail on a non-Mac dev/CI box; keep construction safe.
-            binary = configured_binary or DEFAULT_BINARY
+        if host:
+            # Remote ego(lite): the Mac resolves the binary itself via PATH.
+            # Local path resolution here only ever sees VPS paths, and the
+            # framework helper it picks is not executable on the Mac (exit 126).
+            binary = configured_binary or "ego-browser"
+        else:
+            try:
+                binary = resolve_ego_binary(configured_binary)
+            except EgoError:
+                # Resolution can fail on a non-Mac dev/CI box; keep construction safe.
+                binary = configured_binary or DEFAULT_BINARY
 
         self.client = EgoClient(
             host=host or None,
