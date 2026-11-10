@@ -17,6 +17,10 @@ Supported feed kinds (``FeedSpec.kind``):
 ``linkedin_guest``
     The public "seeMoreJobPostings" HTML fragment, parsed with regexes only
     (no external HTML parser). Often rate-limited; failures are non-fatal.
+``muse``
+    Import-only source for jobs found by Muse (see
+    ``job_agent.discovery.muse``). No endpoint is fetched; the parser
+    returns ``[]`` and jobs arrive via ``job-agent muse import``.
 
 Design rules:
 
@@ -74,6 +78,7 @@ _KIND_PLATFORM: dict[str, Platform] = {
     "lever": Platform.LEVER,
     "ashby": Platform.ASHBY,
     "linkedin_guest": Platform.LINKEDIN,
+    "muse": Platform.MUSE,
 }
 
 # ---------------------------------------------------------------------------
@@ -684,7 +689,24 @@ def _parse_linkedin_guest(
     return out
 
 
+def _parse_muse(
+    client: httpx.Client,
+    spec: FeedSpec,
+    queries: list[str],
+    locations: list[str],
+    timeout: float,
+) -> list[JobPosting]:
+    """Import-only source: Muse jobs arrive via ``job-agent muse import``.
+
+    There is no endpoint to fetch, so discovery yields nothing here.
+    Returning [] (instead of raising for an unknown kind) keeps a cron
+    feed run green while the muse source stays visible in listings.
+    """
+    return []
+
+
 _PARSERS: dict[str, Parser] = {
+    "muse": _parse_muse,
     "remotive": _parse_remotive,
     "remoteok": _parse_remoteok,
     "arbeitnow": _parse_arbeitnow,

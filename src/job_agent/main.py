@@ -294,6 +294,79 @@ def cmd_launch_browser(ctx: click.Context, port: int) -> None:
         click.echo("\nBrowser closed.")
 
 
+@cli.group("muse")
+@click.pass_context
+def cmd_muse(ctx: click.Context) -> None:
+    """Jobs found by Muse (the fusion lane)."""
+    pass
+
+
+@cmd_muse.command("import")
+@click.argument("file", type=click.Path(exists=True, dir_okay=False))
+@click.option(
+    "--profile",
+    "-p",
+    default="config/profiles/aditya.yaml",
+    help="Profile whose filters / thresholds score the import.",
+)
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Parse, dedup and (unless --no-score) score in memory; write nothing.",
+)
+@click.option(
+    "--no-score",
+    is_flag=True,
+    help="Store as DISCOVERED without scoring; the next cron run matches them.",
+)
+@click.option("--limit", "-n", default=0, help="Max jobs to import (0 = all).")
+@click.pass_context
+def cmd_muse_import(ctx, file, profile, dry_run, no_score, limit):
+    """Import jobs Muse found from a JSON or CSV file.
+
+    Each row needs title + company; url, description, location, salary
+    and employment_type are optional. Imported jobs are stamped
+    source=muse, scored with the existing JEV matcher, and queued for a
+    human when they clear the review threshold. Import never applies.
+    """
+    from job_agent.config import load_profile
+    from job_agent.db.session import get_session, init_db
+    from job_agent.discovery.muse import import_muse_jobs, parse_muse_file
+
+    settings = ctx.obj["settings"]
+    postings, errors = parse_muse_file(file)
+    for err in errors:
+        click.echo(f"skipped: {err}", err=True)
+    if limit and limit > 0:
+        postings = postings[:limit]
+    profile_data = load_profile(profile)
+    init_db(settings)
+    session = get_session(settings)
+    try:
+        stats = import_muse_jobs(
+            session,
+            postings,
+            profile_data,
+            settings,
+            dry_run=dry_run,
+            score=not no_score,
+        )
+        session.commit()
+    finally:
+        session.close()
+    click.echo(
+        f"Muse import: parsed={stats['parsed']} imported={stats['imported']} "
+        f"duplicates={stats['duplicates']} "
+        f"cross_platform_duplicates={stats['cross_platform_duplicates']} "
+        f"matched={stats['matched']} queued={stats['queued']} "
+        f"skipped={stats['skipped']} deferred_no_ai={stats['deferred_no_ai']}"
+    )
+    if dry_run:
+        click.echo(f"dry-run: would_import={stats.get('would_import', 0)}")
+    for s in stats["scores"]:
+        click.echo(f"  {s['score']:.2f}  {s['title']} @ {s['company']}")
+
+
 @cli.group("bot")
 @click.pass_context
 def cmd_bot(ctx: click.Context) -> None:

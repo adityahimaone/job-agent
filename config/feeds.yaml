@@ -30,7 +30,7 @@
 #     are recorded as a failed FeedResult (never crash the run) and map to
 #     Platform.OTHER.
 #   * `kind` is one of: remotive | remoteok | arbeitnow | greenhouse | lever |
-#     ashby | linkedin_guest.
+#     ashby | linkedin_guest | muse (import-only, no endpoint).
 #   * For remotive/remoteok/arbeitnow/linkedin_guest, `url` is the full
 #     endpoint. For greenhouse/lever/ashby, `url` is the company BOARD TOKEN
 #     (or a full endpoint URL) - replace REPLACE_WITH_* with a real token and
@@ -82,6 +82,15 @@ feeds:
     url: "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search"
     enabled: true
     platform: linkedin
+
+  # Muse fusion lane (import-only): jobs Muse finds are imported with
+  # `job-agent muse import <file.json|file.csv>`. There is no endpoint
+  # to fetch, so the parser returns [] and a feed run stays green.
+  - name: muse
+    kind: muse
+    url: ""
+    enabled: true
+    platform: muse
 
   # ATS job boards - supply a real board token, then enable. Disabled by
   # default so an unconfigured token never produces noisy failed requests.
