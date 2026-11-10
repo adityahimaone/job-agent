@@ -44,6 +44,8 @@ class ContentConfig(BaseModel):
     output_dir: str = ""  # empty = <data_dir>/documents
     require_grounding: bool = True
     prompt_version: str = "2026-11-06"
+    # "en" default; "id" uses <name>_id.md template variants when present.
+    language: str = "en"
 
 
 class SheetsConfig(BaseModel):
@@ -139,6 +141,12 @@ class PlatformsConfig(BaseModel):
         max_applications_per_day=20,
         session_duration_minutes=45,
         cooldown_minutes=25,
+    )
+    dealls: PlatformConfig = PlatformConfig(
+        enabled=False,
+        use_ego=True,
+        max_requests_per_minute=3,
+        max_applications_per_day=0,
     )
 
 

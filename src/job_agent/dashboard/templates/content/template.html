@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}{{ name }} · Job Agent{% endblock %}
+{% block content %}
+<div class="page-header animate-in">
+    <div>
+        <h2>{{ name }}</h2>
+        <p class="text-muted text-sm">{{ path }}</p>
+    </div>
+    <a class="btn btn-sm btn-outline-secondary" href="/content">&larr; Back</a>
+</div>
+<div class="card animate-in delay-1">
+    <div class="card-body">
+        <pre style="white-space: pre-wrap; word-break: break-word; font-size: .82rem; line-height: 1.55; margin: 0;">{{ text }}</pre>
+    </div>
+</div>
+{% endblock %}

@@ -1,11 +1,11 @@
-# Cron-run overrides: no ego(lite), no Mac dependency.
-# Used by ~/apps/job-agent/run-cron.sh every 6 hours.
-# ego-driven boards need the Mac's logged-in browser, so they are off here;
-# the headless playwright lanes + HTTP feeds carry the run instead.
+# Cron-run overrides. Used by ~/apps/job-agent/run-cron.sh every 6 hours.
+# The Mac ego(lite) lane is enabled for Dealls only: dealls.com blocks the VPS
+# IP behind Cloudflare, so its discovery must browse from the Mac. If the Mac
+# is offline that lane fails non-fatally and the other lanes still run.
 ego:
-  enabled: false
-  host: ""
-  user: ""
+  enabled: true
+  host: "100.75.2.78"
+  user: "adityahimawan"
 
 platforms:
   linkedin:
@@ -22,6 +22,11 @@ platforms:
     enabled: true
   dice:
     enabled: true
+  dealls:
+    enabled: true
+    use_ego: true
+    max_requests_per_minute: 3
+    max_applications_per_day: 0
   linkedin_guest: {}
 
 browser:

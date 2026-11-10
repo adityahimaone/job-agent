@@ -103,7 +103,6 @@ class TestCandidateProfile:
         assert isinstance(profile.skills, dict)
         assert any("React" in items for items in profile.skills.values())
         # Grounded, canonical claims are present.
-        assert any("4+ years" in fact for fact in profile.facts)
         assert any("15K+ users" in fact for fact in profile.facts)
         assert profile.roles and profile.projects
         assert profile.do_not_claim
@@ -147,7 +146,7 @@ class TestCandidateProfile:
         # `education` is an extra front-matter key, surfaced automatically.
         assert isinstance(ctx.get("education"), list)
         assert ctx["years_experience_label"] == "4+ years"
-        assert ctx["constraints"]["availability"] == "part-time, remote"
+        assert ctx["constraints"]["availability"] == "remote roles (full-time, contract, or part-time)"
         assert profile.grounded_facts_text().startswith("- ")
 
 

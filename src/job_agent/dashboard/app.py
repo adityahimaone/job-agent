@@ -151,6 +151,7 @@ def create_app(settings: Settings | None = None) -> Flask:
     from job_agent.dashboard.routes.applications import bp as applications_bp
     from job_agent.dashboard.routes.outreach import bp as outreach_bp
     from job_agent.dashboard.routes.analytics import bp as analytics_bp
+    from job_agent.dashboard.routes.content_page import bp as content_bp
     from job_agent.dashboard.routes.settings_page import bp as settings_bp
 
     app.register_blueprint(overview_bp)
@@ -159,6 +160,7 @@ def create_app(settings: Settings | None = None) -> Flask:
     app.register_blueprint(applications_bp, url_prefix="/applications")
     app.register_blueprint(outreach_bp, url_prefix="/outreach")
     app.register_blueprint(analytics_bp, url_prefix="/analytics")
+    app.register_blueprint(content_bp, url_prefix="/content")
     app.register_blueprint(settings_bp, url_prefix="/settings")
 
     from job_agent.dashboard.routes.actions import bp as actions_bp

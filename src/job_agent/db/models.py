@@ -41,6 +41,9 @@ class Platform(PyEnum):
     GLINTS = "glints"
     KALIBRR = "kalibrr"
     SEEK = "seek"
+    DEALLS = "dealls"
+    # Muse fusion lane: jobs found by Muse, imported via `job-agent muse import`.
+    MUSE = "muse"
     # AI-training / expert networks
     ALIGNERR = "alignerr"
     OUTLIER = "outlier"

@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}Preview · Job Agent{% endblock %}
+{% block content %}
+<div class="page-header animate-in">
+    <div>
+        <h2>Document preview{% if posting %} — {{ posting.title }} · {{ posting.company }}{% endif %}</h2>
+        <p class="text-muted">Deterministic render. No AI call, nothing sent.</p>
+    </div>
+    <div style="display:flex; gap:.5rem; align-items:center;">
+        {% if job_id %}
+        <div class="btn-group btn-group-sm" role="group" aria-label="Language">
+            <a class="btn btn-outline-primary {% if lang == 'en' %}active{% endif %}" href="/content/preview?job_id={{ job_id }}&lang=en">EN</a>
+            <a class="btn btn-outline-primary {% if lang == 'id' %}active{% endif %}" href="/content/preview?job_id={{ job_id }}&lang=id">ID</a>
+        </div>
+        {% endif %}
+        <a class="btn btn-sm btn-outline-secondary" href="/content">&larr; Back</a>
+    </div>
+</div>
+
+{% if warnings %}
+<div class="card animate-in" style="border-left: 4px solid #e0a100;">
+    <div class="card-body">
+        <strong>Grounding warnings:</strong>
+        <ul>{% for w in warnings %}<li>{{ w }}</li>{% endfor %}</ul>
+    </div>
+</div>
+{% endif %}
+
+<div class="card animate-in delay-1">
+    <div class="card-header"><h5>Resume (attached to every email)</h5></div>
+    <div class="card-body">
+        <p class="text-muted text-sm" style="margin:0 0 .5rem;">
+            Always the published English resume — not generated per job, so nothing drifts.
+        </p>
+        <a class="btn btn-sm btn-outline-primary" href="{{ resume_pdf_url }}" target="_blank" rel="noopener">
+            <i class="bi bi-file-earmark-pdf"></i> {{ resume_pdf_url }}
+        </a>
+    </div>
+</div>
+
+<div class="card animate-in delay-2">
+    <div class="card-header"><h5>Cover letter</h5></div>
+    <div class="card-body">
+        <pre style="white-space: pre-wrap; font-size:.82rem; line-height:1.55; margin:0;">{{ docs.cover_letter }}</pre>
+    </div>
+</div>
+
+<div class="card animate-in delay-3">
+    <div class="card-header"><h5>Email — subject + body</h5></div>
+    <div class="card-body">
+        <div class="text-sm text-muted">Subject</div>
+        <div style="margin-bottom:.75rem;"><strong>{{ docs.email_subject }}</strong></div>
+        <pre style="white-space: pre-wrap; font-size:.82rem; line-height:1.55; margin:0;">{{ docs.email_body }}</pre>
+    </div>
+</div>
+
+<div class="card animate-in delay-4">
+    <div class="card-header"><h5>Connection note &amp; gig profile</h5></div>
+    <div class="card-body">
+        <pre style="white-space: pre-wrap; font-size:.82rem; line-height:1.55; margin:0 0 1rem;">{{ docs.connection_note }}</pre>
+        <pre style="white-space: pre-wrap; font-size:.82rem; line-height:1.55; margin:0;">{{ docs.gig_profile }}</pre>
+    </div>
+</div>
+
+<div class="card animate-in delay-5">
+    <div class="card-header"><h5>Send this email (Google OAuth — Hermes account)</h5></div>
+    <div class="card-body">
+        <form method="post" action="/content/email">
+            <input type="hidden" name="job_id" value="{{ job_id }}">
+            <input type="hidden" name="lang" value="{{ lang }}">
+            <div style="display:flex; gap:.75rem; align-items:flex-end;">
+                <div style="flex:1;">
+                    <label class="form-label">Recipient email</label>
+                    <input type="email" name="to" class="form-control" placeholder="recruiter@company.com" required>
+                </div>
+                <button type="submit" class="btn btn-primary btn-sm">
+                    <i class="bi bi-envelope-fill"></i> Send via Google
+                </button>
+            </div>
+            <p class="text-muted text-sm" style="margin-top:.75rem;">
+                Sent from your Hermes Google account (gmail.send) in <strong>{{ lang|upper }}</strong>,
+                with the published resume PDF attached. This action is immediate and cannot be undone.
+            </p>
+        </form>
+    </div>
+</div>
+{% endblock %}

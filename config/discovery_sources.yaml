@@ -14,7 +14,18 @@
 # automatically). Selectors are CSS and run via document.querySelectorAll inside
 # the browser page. `remote_hint` is a lowercase substring used to flag remote
 # roles; unknown `platform` values map to Platform.OTHER.
-ego_boards: {}
+ego_boards:
+  # Dealls (Indonesian job board, Next.js + Cloudflare) — must run in ego(lite)
+  # on the Mac; the VPS IP is blocked with "Attention Required! | Cloudflare".
+  # `search` is the working query param (`keyword` is ignored, `q` is ignored).
+  dealls:
+    platform: dealls
+    search_url: "https://dealls.com/loker?search={query}"
+    card_selector: 'a[href^="/loker/"]:not([href*="/posisi"]):not([href*="/curated"]):not([href$="/loker"]):not([href*="/industri"]):not([href*="/lokasi"]):not([href*="/tipe/"]):not([href*="/tingkat"]):not([href*="/jenius"]):not([href$="/populer"])'
+    title_selector: "div.mb-\\[13px\\] h2"
+    company_selector: "div.mb-\\[13px\\] div.flex"
+    location_selector: "div.mb-1\\.5 div:nth-child(2)"
+    remote_hint: "remote"
 #
 # ---- Example: add a custom board -------------------------------------------
 # ego_boards:

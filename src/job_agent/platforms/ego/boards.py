@@ -119,6 +119,17 @@ def default_board_specs() -> dict[str, BoardSpec]:
             link_selector="a[href*='/job/'], a[href*='seek.com.au']",
             remote_hint="remote",
         ),
+        "dealls": BoardSpec(
+            name="dealls",
+            platform="dealls",
+            search_url="https://dealls.com/loker?search={query}",
+            card_selector='a[href^="/loker/"]:not([href*="/posisi"]):not([href*="/curated"]):not([href$="/loker"]):not([href*="/industri"]):not([href*="/lokasi"]):not([href*="/tipe/"]):not([href*="/tingkat"]):not([href*="/jenius"]):not([href$="/populer"])',
+            title_selector="div.mb-\\[13px\\] h2",
+            company_selector="div.mb-\\[13px\\] div.flex",
+            location_selector="div.mb-1\\.5 div:nth-child(2)",
+            link_selector="a",
+            remote_hint="remote",
+        ),
     }
 
 
@@ -204,6 +215,7 @@ _ROW_EXTRACTOR = r"""async (cfg) => {
   };
   const linkOf = (card) => {
     try {
+      if (card.matches && card.matches("a[href]")) return new URL(card.getAttribute("href"), document.baseURI).href;
       const e = (cfg.link && card.querySelector(cfg.link)) ||
         card.querySelector("a[href]");
       if (!e) return "";
@@ -268,9 +280,16 @@ def build_board_script(
     return f"""
 const cfg = {json.dumps(cfg)};
 const task = await taskSpace(cfg.space);
-const page = task.page("p1");
+let page = task.page("p1");
 await page.goto(cfg.url);
 await new Promise((r) => setTimeout(r, cfg.settle));
+// A previously used p1 can report a successful goto yet stay on the old URL
+// (stale managed page); detect it and reuse a fresh page instead.
+if ((await page.evaluate(() => location.href)) !== cfg.url) {{
+  page = await task.newPage();
+  await page.goto(cfg.url);
+  await new Promise((r) => setTimeout(r, cfg.settle));
+}}
 const rows = await page.evaluate({_ROW_EXTRACTOR}, cfg.sel);
 console.log("__RESULT__" + JSON.stringify({{ rows }}));
 """
@@ -296,12 +315,17 @@ def build_board_batch_script(
     return f"""
 const cfg = {json.dumps(cfg)};
 const task = await taskSpace(cfg.space);
-const page = task.page("p1");
+let page = task.page("p1");
 const rows = [];
 for (const url of cfg.urls) {{
   if (rows.length >= cfg.limit) break;
   await page.goto(url);
   await new Promise((r) => setTimeout(r, cfg.settle));
+  if ((await page.evaluate(() => location.href)) !== url) {{
+    page = await task.newPage();
+    await page.goto(url);
+    await new Promise((r) => setTimeout(r, cfg.settle));
+  }}
   const batch = await page.evaluate({_ROW_EXTRACTOR}, cfg.sel);
   for (const row of batch) {{
     rows.push(row);

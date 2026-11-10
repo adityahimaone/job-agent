@@ -87,11 +87,35 @@
                 </div>
 
                 <div class="ai-key-group" data-provider="openrouter">
-                    <label class="form-label">OpenRouter API Key
+                    <label class="form-label">OpenRouter / Custom API Key
                         <a href="https://openrouter.ai/keys" target="_blank" class="text-sm" style="margin-left: 0.5rem;">Get key</a>
                     </label>
                     <input type="password" name="openrouter_api_key" class="form-control"
                            placeholder="{{ ai_config.openrouter_key or 'Not set' }}">
+                </div>
+
+                <div class="ai-key-group" data-provider="custom">
+                    <label class="form-label">Custom API Key (sent as Bearer)</label>
+                    <input type="password" name="openrouter_api_key" class="form-control"
+                           placeholder="{{ ai_config.openrouter_key or 'Not set' }}">
+                    <div class="text-sm text-muted" style="margin-top:.35rem;">
+                        Custom provider uses an OpenAI-compatible endpoint — set Base URL + Model below.
+                    </div>
+                </div>
+
+                <div style="margin: 1rem 0; padding: .85rem; border: 1px solid rgba(255,255,255,.08); border-radius: 8px;">
+                    <label class="form-label">Base URL (OpenAI-compatible)</label>
+                    <input type="text" name="ai_base_url" class="form-control"
+                           value="{{ ai_config.base_url }}"
+                           placeholder="https://9router.adityahimaone.space/v1">
+                    <label class="form-label" style="margin-top:.75rem;">Model</label>
+                    <input type="text" name="ai_model" class="form-control"
+                           value="{{ ai_config.model }}"
+                           placeholder="cheap">
+                    <div class="text-sm text-muted" style="margin-top:.5rem;">
+                        Applies to the <code>openrouter</code> / <code>custom</code> providers.
+                        Saved to .env as JOB_AGENT_OPENROUTER_BASE_URL and JOB_AGENT_MATCHING__MODEL.
+                    </div>
                 </div>
 
                 <div class="ai-key-group" data-provider="anthropic">
@@ -206,7 +230,45 @@
 <!-- Email / SMTP -->
 <div class="card animate-in delay-5">
     <div class="card-header">
-        <h5>Email / SMTP</h5>
+        <h5>Email — Google OAuth (Hermes account)</h5>
+    </div>
+    <div class="card-body">
+        <div style="margin-bottom: 1rem;">
+            {% if google_config.ready %}
+            <span class="badge bg-success">Connected</span>
+            <span class="text-sm text-muted" style="margin-left:.5rem;">
+                Sending as <strong>{{ google_config.sender or 'Google account' }}</strong> via gmail.send
+            </span>
+            {% else %}
+            <span class="badge bg-danger">Not connected</span>
+            <span class="text-sm text-muted" style="margin-left:.5rem;">
+                No usable token at ~/.hermes/google_token.json
+            </span>
+            {% endif %}
+        </div>
+        <form method="post" action="/settings/email-google">
+            <div style="display:flex; gap:.75rem; align-items:flex-end;">
+                <div style="flex:1;">
+                    <label class="form-label">Send test email to</label>
+                    <input type="email" name="to" class="form-control"
+                           value="{{ email_config.notification_email or google_config.sender }}"
+                           placeholder="you@example.com" required>
+                </div>
+                <button type="submit" class="btn btn-primary btn-sm" {% if not google_config.ready %}disabled{% endif %}>
+                    <i class="bi bi-envelope-check"></i> Send test
+                </button>
+            </div>
+            <p class="text-sm text-muted" style="margin-top:.75rem;">
+                Application emails are sent from the Content page (per job) with this same account.
+                No SMTP password needed.
+            </p>
+        </form>
+    </div>
+</div>
+
+<div class="card animate-in delay-5">
+    <div class="card-header">
+        <h5>Email / SMTP (fallback)</h5>
     </div>
     <div class="card-body">
         <form method="post" action="/settings/email">

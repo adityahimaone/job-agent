@@ -25,7 +25,7 @@ bp = Blueprint("settings_page", __name__)
 _ENV_PATH = Path(".env")
 _ENV_EXAMPLE_PATH = Path(".env.example")
 
-_AI_PROVIDERS = ["gemini", "groq", "openrouter", "ollama", "anthropic"]
+_AI_PROVIDERS = ["gemini", "groq", "openrouter", "ollama", "anthropic", "custom"]
 
 _PROVIDER_KEY_FIELDS = {
     "gemini": "gemini_api_key",
@@ -101,11 +101,20 @@ def index():
 
         ai_config = {
             "provider": settings.ai_provider,
+            "base_url": settings.openrouter_base_url,
+            "model": settings.matching.model,
             "gemini_key": _mask_key(settings.gemini_api_key),
             "groq_key": _mask_key(settings.groq_api_key),
             "openrouter_key": _mask_key(settings.openrouter_api_key),
             "anthropic_key": _mask_key(settings.anthropic_api_key),
             "providers": _AI_PROVIDERS,
+        }
+
+        from job_agent.integrations.gmail_send import sender_address, token_ready
+
+        google_config = {
+            "ready": token_ready(),
+            "sender": sender_address(),
         }
 
         email_config = {
@@ -129,6 +138,7 @@ def index():
             credentials=credentials,
             thresholds=thresholds,
             ai_config=ai_config,
+            google_config=google_config,
             email_config=email_config,
             profiles=profiles,
         )
@@ -259,7 +269,44 @@ def update_ai_provider():
     _write_env_var("JOB_AGENT_AI_PROVIDER", provider)
     settings.ai_provider = provider
 
+    # Custom OpenAI-compatible endpoint (provider=openrouter, custom base URL)
+    base_url = request.form.get("ai_base_url", "").strip()
+    if base_url:
+        _write_env_var("JOB_AGENT_OPENROUTER_BASE_URL", base_url)
+        settings.openrouter_base_url = base_url
+    model = request.form.get("ai_model", "").strip()
+    if model:
+        _write_env_var("JOB_AGENT_MATCHING__MODEL", model)
+        settings.matching.model = model
+
     flash(f"AI provider set to {provider}.", "success")
+    return redirect(url_for("settings_page.index"))
+
+
+@bp.route("/email-google", methods=["POST"])
+def test_google_email():
+    """Send a test email through the Hermes Google OAuth token."""
+    to_addr = (request.form.get("to") or "").strip()
+    if not to_addr:
+        flash("Recipient email is required.", "danger")
+        return redirect(url_for("settings_page.index"))
+
+    from job_agent.integrations.gmail_send import send_email as gmail_send
+
+    try:
+        result = gmail_send(
+            to_addr, "Job Agent — test email",
+            "This is a test from the Job Agent dashboard using your Hermes Google account.",
+        )
+    except Exception as exc:
+        flash(f"Google send failed: {type(exc).__name__}: {exc}", "danger")
+        return redirect(url_for("settings_page.index"))
+
+    flash(
+        f"Test email sent to {to_addr} via {result.get('from') or 'Google account'} "
+        f"(id {result.get('id', '?')}).",
+        "success",
+    )
     return redirect(url_for("settings_page.index"))
 
 

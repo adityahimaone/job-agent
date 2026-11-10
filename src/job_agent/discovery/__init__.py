@@ -14,6 +14,12 @@ from job_agent.discovery.feeds import (
     default_feed_specs,
     load_feed_specs,
 )
+from job_agent.discovery.muse import (
+    MUSE_SOURCE,
+    import_muse_jobs,
+    parse_muse_file,
+    to_posting,
+)
 
 __all__ = [
     "FeedHub",
@@ -24,4 +30,8 @@ __all__ = [
     "BoardSpec",
     "default_board_specs",
     "load_board_specs",
+    "MUSE_SOURCE",
+    "import_muse_jobs",
+    "parse_muse_file",
+    "to_posting",
 ]
