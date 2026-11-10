@@ -45,6 +45,7 @@ def _parse_completion(raw: str) -> dict:
         obj, _ = json.JSONDecoder().raw_decode(raw)
         return obj
 
+
 # Provider constants
 PROVIDER_ANTHROPIC = "anthropic"
 PROVIDER_GEMINI = "gemini"

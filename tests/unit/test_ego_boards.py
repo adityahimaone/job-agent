@@ -11,5 +11,7 @@ def test_dealls_default_spec_present():
     assert "/posisi" in spec.card_selector
     assert "/industri" in spec.card_selector
     assert spec.title_selector
-    script = build_board_script(spec, query="frontend", location="", limit=5, settle_ms=10)
+    script = build_board_script(
+        spec, query="frontend", location="", limit=5, settle_ms=10
+    )
     assert "dealls.com/loker?search=frontend" in script

@@ -7,8 +7,6 @@ the Hermes Google OAuth token.
 
 from __future__ import annotations
 
-from pathlib import Path
-
 from flask import (
     Blueprint,
     current_app,

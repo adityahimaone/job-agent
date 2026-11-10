@@ -62,13 +62,18 @@ class _FakeMatcher:
     def match(self, posting, profile):
         if "react" in posting.title.lower():
             return MatchScore(
-                score=0.8, reasoning="fake: React match",
-                matched_skills=["React"], missing_skills=["Next.js"],
+                score=0.8,
+                reasoning="fake: React match",
+                matched_skills=["React"],
+                missing_skills=["Next.js"],
                 role_fit="possible",
             )
         return MatchScore(
-            score=0.2, reasoning="fake: no fit",
-            matched_skills=[], missing_skills=["React"], role_fit="none",
+            score=0.2,
+            reasoning="fake: no fit",
+            matched_skills=[],
+            missing_skills=["React"],
+            role_fit="none",
         )
 
 
@@ -124,7 +129,9 @@ def test_parse_json_list_and_csv(tmp_path):
 
     cf = tmp_path / "muse.csv"
     with cf.open("w", newline="", encoding="utf-8") as fh:
-        w = csv.DictWriter(fh, fieldnames=["title", "company", "location", "url", "description"])
+        w = csv.DictWriter(
+            fh, fieldnames=["title", "company", "location", "url", "description"]
+        )
         w.writeheader()
         w.writerow({k: REACT_JOB[k] for k in w.fieldnames})
     postings, errors = parse_muse_file(cf)
@@ -134,7 +141,9 @@ def test_parse_json_list_and_csv(tmp_path):
 
 def test_parse_json_object_and_jobs_key(tmp_path):
     jf = tmp_path / "one.json"
-    jf.write_text(json.dumps({"jobs": [REACT_JOB, {"title": "No company"}]}), encoding="utf-8")
+    jf.write_text(
+        json.dumps({"jobs": [REACT_JOB, {"title": "No company"}]}), encoding="utf-8"
+    )
     postings, errors = parse_muse_file(jf)
     assert len(postings) == 1
     assert len(errors) == 1  # missing company is reported, not fatal
@@ -149,8 +158,11 @@ def test_import_scores_and_queues_high_fit_without_applying():
     engine, session = _make_session()
     try:
         stats = import_muse_jobs(
-            session, [to_posting(REACT_JOB), to_posting(JAVA_JOB)],
-            PROFILE, _settings(), matcher=_FakeMatcher(),
+            session,
+            [to_posting(REACT_JOB), to_posting(JAVA_JOB)],
+            PROFILE,
+            _settings(),
+            matcher=_FakeMatcher(),
         )
         assert stats["imported"] == 2
         assert stats["matched"] == 2
@@ -172,12 +184,18 @@ def test_reimport_is_a_noop_dedup():
     engine, session = _make_session()
     try:
         first = import_muse_jobs(
-            session, [to_posting(REACT_JOB)], PROFILE, _settings(),
+            session,
+            [to_posting(REACT_JOB)],
+            PROFILE,
+            _settings(),
             score=False,
         )
         assert first["imported"] == 1
         second = import_muse_jobs(
-            session, [to_posting(REACT_JOB)], PROFILE, _settings(),
+            session,
+            [to_posting(REACT_JOB)],
+            PROFILE,
+            _settings(),
             score=False,
         )
         assert second["imported"] == 0
@@ -194,12 +212,17 @@ def test_cross_platform_duplicate_is_skipped():
     try:
         repo = JobRepository(session)
         repo.create(
-            external_id="li-1", platform=Platform.LINKEDIN,
-            title="React Frontend Developer", company="Acme Studio",
+            external_id="li-1",
+            platform=Platform.LINKEDIN,
+            title="React Frontend Developer",
+            company="Acme Studio",
         )
         session.commit()
         stats = import_muse_jobs(
-            session, [to_posting(REACT_JOB)], PROFILE, _settings(),
+            session,
+            [to_posting(REACT_JOB)],
+            PROFILE,
+            _settings(),
             score=False,
         )
         assert stats["imported"] == 0
@@ -214,8 +237,12 @@ def test_dry_run_writes_nothing_but_scores():
     engine, session = _make_session()
     try:
         stats = import_muse_jobs(
-            session, [to_posting(REACT_JOB)], PROFILE, _settings(),
-            dry_run=True, matcher=_FakeMatcher(),
+            session,
+            [to_posting(REACT_JOB)],
+            PROFILE,
+            _settings(),
+            dry_run=True,
+            matcher=_FakeMatcher(),
         )
         assert stats["would_import"] == 1
         assert stats["imported"] == 0

@@ -387,7 +387,8 @@ class SheetConfig:
             backend=sheets.backend,
             spreadsheet_id=sheets.spreadsheet_id,
             credentials_path=sheets.credentials_path,
-            token_path=getattr(sheets, "token_path", "") or "~/.hermes/google_token.json",
+            token_path=getattr(sheets, "token_path", "")
+            or "~/.hermes/google_token.json",
         )
 
 
@@ -482,7 +483,9 @@ def _google_credentials(config: SheetConfig, scopes: list[str]):
     import json
     from pathlib import Path
 
-    cred_path = Path(config.credentials_path).expanduser() if config.credentials_path else None
+    cred_path = (
+        Path(config.credentials_path).expanduser() if config.credentials_path else None
+    )
     if cred_path and cred_path.exists():
         payload = json.loads(cred_path.read_text())
         if payload.get("type") == "service_account":

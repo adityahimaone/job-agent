@@ -215,16 +215,18 @@ class JobMatcher:
             fit = score_fit(state)
             if fit is not None:
                 desc = (job.description or "").lower()
-                all_skills = skills.get("required", []) + skills.get(
-                    "preferred", []
-                )
+                all_skills = skills.get("required", []) + skills.get("preferred", [])
                 matched = [s for s in all_skills if s.lower() in desc]
                 missing = [s for s in all_skills if s.lower() not in desc]
                 return MatchScore(
                     score=fit,
                     reasoning=f"JEV fit score {fit:.2f} (typesafe jev, structured).",
                     role_fit=(
-                        "strong" if fit >= 0.90 else "possible" if fit >= 0.70 else "none"
+                        "strong"
+                        if fit >= 0.90
+                        else "possible"
+                        if fit >= 0.70
+                        else "none"
                     ),
                     matched_skills=matched,
                     missing_skills=missing,

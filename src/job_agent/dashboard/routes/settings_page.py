@@ -295,7 +295,8 @@ def test_google_email():
 
     try:
         result = gmail_send(
-            to_addr, "Job Agent — test email",
+            to_addr,
+            "Job Agent — test email",
             "This is a test from the Job Agent dashboard using your Hermes Google account.",
         )
     except Exception as exc:

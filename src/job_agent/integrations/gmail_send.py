@@ -76,7 +76,9 @@ def send_email(
     for filename, data, mime in attachments or []:
         maintype, _, subtype = mime.partition("/")
         msg.add_attachment(
-            data, maintype=maintype or "application", subtype=subtype or "octet-stream",
+            data,
+            maintype=maintype or "application",
+            subtype=subtype or "octet-stream",
             filename=filename,
         )
     raw = base64.urlsafe_b64encode(msg.as_bytes()).decode("ascii")

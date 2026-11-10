@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from unittest.mock import patch, MagicMock
 
 import pytest
@@ -239,10 +240,13 @@ class TestOpenAICompatCompletion:
         client = AIClient(s)
 
         mock_response = MagicMock()
-        mock_response.json.return_value = {
+        body = {
             "choices": [{"message": {"content": "AI response"}}],
             "usage": {"prompt_tokens": 10, "completion_tokens": 5},
         }
+        mock_response.json.return_value = body
+        # _complete_openai_compat parses resp.text, not resp.json().
+        mock_response.text = json.dumps(body)
         mock_response.raise_for_status = MagicMock()
 
         with patch.object(client._http, "post", return_value=mock_response):
@@ -262,7 +266,10 @@ class TestOpenAICompatCompletion:
         client = AIClient(s)
 
         mock_response = MagicMock()
-        mock_response.json.return_value = {"choices": []}
+        body = {"choices": []}
+        mock_response.json.return_value = body
+        # _complete_openai_compat parses resp.text, not resp.json().
+        mock_response.text = json.dumps(body)
         mock_response.raise_for_status = MagicMock()
 
         with patch.object(client._http, "post", return_value=mock_response):
