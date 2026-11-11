@@ -3,10 +3,10 @@
 `JobMatcher.match` (`src/job_agent/ai/job_matcher.py`) scores a posting 0.0–1.0
 against the active profile. `decide_job` then applies the thresholds from
 `config/default.yaml`: `>= 0.90` auto-approve (QUEUED when
-`require_approval=True`, as the Muse lane always does), `>= 0.50` review
-queue, below that skip. The review threshold was loosened 0.55 -> 0.50
-on 2026-11-11 at Aditya's request ("jangan terlalu strict"): scores
-0.50-0.54 are borderline fits, and the queue is human review, not
+`require_approval=True`, as the Muse lane always does), `>= 0.40` review
+queue, below that skip. The review threshold was loosened 0.55 -> 0.50 -> 0.40
+on 2026-11-11 at Aditya's request ("jangan terlalu strict" / "turunin ke
+angka 0,40"): scores 0.40-0.49 are borderline fits, and the queue is human review, not
 auto-apply, so sending them there is the cheaper error.
 
 ## Order of operations
@@ -31,7 +31,7 @@ auto-apply, so sending them there is the cheaper error.
    after a scoring failure (`match_error`, `parse_error`):
    - description under 40 words + frontend-role title + 2 or more stack
      skills in title/description → floor **0.60**
-   - same, with fewer than 2 stack skills → floor **0.55** (exactly the
+   - same, with fewer than 2 stack skills → floor **0.55** (above the
      review threshold, so the job queues for a human)
    - rich descriptions and non-frontend titles: no floor; a score above
      the floor is never lowered.
@@ -51,7 +51,7 @@ substring check ("React" matches "React.js").
 ## What this does NOT change
 
 - The 0.90 auto-apply threshold is untouched; the review threshold
-  is 0.50 (loosened from 0.55 on 2026-11-11, see top of this file).
+  is 0.40 (loosened from 0.55 via 0.50 on 2026-11-11, see top of this file).
 - Exclusions, the title prefilter, and rich-description skill prefilter
   behave exactly as before.
 ## Live re-score
@@ -62,3 +62,4 @@ re-scores stored SKIPPED/DISCOVERED jobs with the current matcher and
 APPLIED jobs are never touched and no application is ever created. An
 existing match result is updated in place (no duplicate rows). First
 run 2026-11-11 after the 0.55 -> 0.50 loosening, at Aditya's request.
+Second run 2026-11-11 after the 0.50 -> 0.40 loosening, at Aditya's request.
