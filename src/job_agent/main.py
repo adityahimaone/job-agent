@@ -519,6 +519,65 @@ def cmd_muse_run(ctx, file, profile, dry_run, no_score, limit, with_ego_fallback
         click.echo(f"ego fallback: stored {report['ego_jobs']} jobs")
 
 
+@cli.command("rescore")
+@click.option(
+    "--profile",
+    "-p",
+    default="config/profiles/aditya.yaml",
+    help="Profile whose filters / thresholds score the re-match.",
+)
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Score in memory; write nothing.",
+)
+@click.option("--limit", "-n", default=0, help="Max jobs to re-score (0 = all).")
+@click.pass_context
+def cmd_rescore(ctx, profile, dry_run, limit):
+    """Re-score stored SKIPPED/DISCOVERED jobs with the current matcher.
+
+    Used after a scoring change so jobs skipped under the old rules get
+    a second look. Only scores and job status change (SKIPPED ->
+    QUEUED when the new score clears the review threshold). APPLIED
+    jobs are never touched, and the best outcome is QUEUED — re-scoring
+    never applies.
+    """
+    from job_agent.config import load_profile
+    from job_agent.db.session import get_session, init_db
+    from job_agent.discovery.rescore import rescore_jobs
+
+    settings = ctx.obj["settings"]
+    profile_data = load_profile(profile)
+    init_db(settings)
+    session = get_session(settings)
+    try:
+        stats = rescore_jobs(
+            session,
+            profile_data,
+            settings,
+            limit=limit,
+            dry_run=dry_run,
+        )
+        if not dry_run:
+            session.commit()
+    finally:
+        session.close()
+    if stats.get("deferred_no_ai"):
+        click.echo("rescore deferred: no AI provider configured")
+        return
+    click.echo(
+        f"rescore: rescored={stats['rescored']} queued={stats['queued']} "
+        f"skipped={stats['skipped']} unchanged={stats['unchanged']}"
+    )
+    for c in stats["changes"]:
+        if c["old_status"] != c["new_status"] or c["old_score"] != c["new_score"]:
+            click.echo(
+                f"  {c['old_score']} -> {c['new_score']:.2f} "
+                f"{c['old_status']}->{c['new_status']}  "
+                f"{c['title']} @ {c['company']}"
+            )
+
+
 @cli.group("bot")
 @click.pass_context
 def cmd_bot(ctx: click.Context) -> None:

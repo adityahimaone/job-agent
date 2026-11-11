@@ -3,8 +3,11 @@
 `JobMatcher.match` (`src/job_agent/ai/job_matcher.py`) scores a posting 0.0–1.0
 against the active profile. `decide_job` then applies the thresholds from
 `config/default.yaml`: `>= 0.90` auto-approve (QUEUED when
-`require_approval=True`, as the Muse lane always does), `>= 0.55` review
-queue, below that skip.
+`require_approval=True`, as the Muse lane always does), `>= 0.50` review
+queue, below that skip. The review threshold was loosened 0.55 -> 0.50
+on 2026-11-11 at Aditya's request ("jangan terlalu strict"): scores
+0.50-0.54 are borderline fits, and the queue is human review, not
+auto-apply, so sending them there is the cheaper error.
 
 ## Order of operations
 
@@ -47,10 +50,15 @@ substring check ("React" matches "React.js").
 
 ## What this does NOT change
 
-- The 0.55 review threshold and 0.90 auto-apply threshold are untouched.
+- The 0.90 auto-apply threshold is untouched; the review threshold
+  is 0.50 (loosened from 0.55 on 2026-11-11, see top of this file).
 - Exclusions, the title prefilter, and rich-description skill prefilter
   behave exactly as before.
-- A live re-score of already-stored jobs is a separate, explicit step:
-  this change only affects jobs matched after it lands. Re-running it over
-  the DB would newly queue ~40-46 thin frontend-role jobs currently below
-  0.55 (measured 2026-11-11) — Aditya should approve that re-run first.
+## Live re-score
+
+`job-agent rescore [--dry-run] [--limit N]` (`src/job_agent/discovery/rescore.py`)
+re-scores stored SKIPPED/DISCOVERED jobs with the current matcher and
+`decide_job(..., require_approval=True)`, so the best outcome is QUEUED.
+APPLIED jobs are never touched and no application is ever created. An
+existing match result is updated in place (no duplicate rows). First
+run 2026-11-11 after the 0.55 -> 0.50 loosening, at Aditya's request.
