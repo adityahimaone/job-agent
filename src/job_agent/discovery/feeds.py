@@ -705,8 +705,25 @@ def _parse_muse(
     return []
 
 
+def _parse_muse_feed(
+    client: httpx.Client,
+    spec: FeedSpec,
+    queries: list[str],
+    locations: list[str],
+    timeout: float,
+) -> list[JobPosting]:
+    """Import-only source: feed jobs arrive via ``job-agent muse import-feed``.
+
+    There is no endpoint to fetch, so discovery yields nothing here.
+    Returning [] (instead of raising for an unknown kind) keeps a cron
+    feed run green while the muse-feed source stays visible in listings.
+    """
+    return []
+
+
 _PARSERS: dict[str, Parser] = {
     "muse": _parse_muse,
+    "muse_feed": _parse_muse_feed,
     "remotive": _parse_remotive,
     "remoteok": _parse_remoteok,
     "arbeitnow": _parse_arbeitnow,

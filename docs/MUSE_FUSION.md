@@ -80,3 +80,11 @@ uv run pytest tests/unit/test_muse_fusion.py -q
 Covers parsing (JSON/CSV, invalid rows), external-id namespacing,
 import + scoring + queueing, re-import dedup, cross-platform dedup,
 dry-run writing nothing, and the import-only feed parser.
+
+## LinkedIn timeline/feed jobs
+
+Jobs shared as timeline posts (not formal postings) enter through a
+sibling lane: `job-agent muse import-feed <file>`. See
+`docs/MUSE_FEED.md` — same contract (file in, QUEUED-only import out),
+plus post classification/extraction and a grounded connection-note
+preview (`muse feed-note --job-id <id>`, preparation only, never sent).

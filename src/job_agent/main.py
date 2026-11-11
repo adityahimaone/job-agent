@@ -391,6 +391,119 @@ def cmd_muse_import(ctx, file, profile, dry_run, no_score, limit):
         click.echo(f"  {s['score']:.2f}  {s['title']} @ {s['company']}")
 
 
+@cmd_muse.command("import-feed")
+@click.argument("file", type=click.Path(exists=True, dir_okay=False))
+@click.option(
+    "--profile",
+    "-p",
+    default="config/profiles/aditya.yaml",
+    help="Profile whose filters / thresholds score the import.",
+)
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Parse, extract, dedup and (unless --no-score) score in memory; write nothing.",
+)
+@click.option(
+    "--no-score",
+    is_flag=True,
+    help="Store as DISCOVERED without scoring; the next cron run matches them.",
+)
+@click.option("--limit", "-n", default=0, help="Max posts to import (0 = all).")
+@click.pass_context
+def cmd_muse_import_feed(ctx, file, profile, dry_run, no_score, limit):
+    """Import jobs shared as LinkedIn timeline/feed posts.
+
+    Each row is a post (post_url + post_text); a post only becomes a job
+    when it carries a hiring signal and an extractable frontend role
+    (title + company). Non-job and incomplete posts are reported and
+    skipped. Imported jobs are stamped source=muse-feed, scored with the
+    existing JEV matcher, and queued for a human when they clear the
+    review threshold. Import never applies, never connects, never messages.
+    """
+    from job_agent.config import load_profile
+    from job_agent.db.session import get_session, init_db
+    from job_agent.discovery.muse_feed import import_feed_jobs, parse_feed_file
+
+    settings = ctx.obj["settings"]
+    postings, errors, feed_stats = parse_feed_file(file)
+    for err in errors:
+        click.echo(f"skipped: {err}", err=True)
+    if limit and limit > 0:
+        postings = postings[:limit]
+    profile_data = load_profile(profile)
+    init_db(settings)
+    session = get_session(settings)
+    try:
+        stats = import_feed_jobs(
+            session,
+            postings,
+            profile_data,
+            settings,
+            dry_run=dry_run,
+            score=not no_score,
+        )
+        session.commit()
+    finally:
+        session.close()
+    click.echo(
+        f"Muse feed import: posts={feed_stats['posts']} "
+        f"non_job={feed_stats['non_job']} incomplete={feed_stats['incomplete']} "
+        f"parsed={stats['parsed']} imported={stats['imported']} "
+        f"duplicates={stats['duplicates']} "
+        f"cross_platform_duplicates={stats['cross_platform_duplicates']} "
+        f"matched={stats['matched']} queued={stats['queued']} "
+        f"skipped={stats['skipped']} deferred_no_ai={stats['deferred_no_ai']}"
+    )
+    if dry_run:
+        click.echo(f"dry-run: would_import={stats.get('would_import', 0)}")
+    for s in stats["scores"]:
+        click.echo(f"  {s['score']:.2f}  {s['title']} @ {s['company']}")
+
+
+@cmd_muse.command("feed-note")
+@click.option(
+    "--job-id", type=int, required=True, help="Job id of an imported feed job."
+)
+@click.option(
+    "--profile",
+    "-p",
+    default="config/profiles/aditya.yaml",
+    help="Profile used for the grounded note.",
+)
+@click.pass_context
+def cmd_muse_feed_note(ctx, job_id, profile):
+    """Render the grounded LinkedIn connection note for a feed-found job.
+
+    Preparation only: prints the note from
+    config/templates/connection_note.md (rendered from
+    candidate_profile.md, grounding-checked). NOTHING is sent — show the
+    note to Aditya for approval before clicking Connect in a browser.
+    """
+    from job_agent.config import load_profile
+    from job_agent.db.repository import JobRepository
+    from job_agent.db.session import get_session, init_db
+    from job_agent.discovery.muse_feed import render_feed_connection_note
+
+    settings = ctx.obj["settings"]
+    profile_data = load_profile(profile)
+    init_db(settings)
+    session = get_session(settings)
+    try:
+        job = JobRepository(session).get_by_id(job_id)
+        if job is None:
+            click.echo(f"no job with id {job_id}", err=True)
+            raise SystemExit(1)
+        note, warnings = render_feed_connection_note(job, profile_data, session)
+    finally:
+        session.close()
+    click.echo(f"connection note for job {job_id} ({job.title} @ {job.company}):")
+    click.echo(note)
+    for w in warnings:
+        click.echo(f"warning: {w}", err=True)
+    click.echo("NOT SENT — approve the wording before sending anything on LinkedIn.")
+
+
 @cmd_muse.command("run")
 @click.argument("file", type=click.Path(dir_okay=False))
 @click.option(

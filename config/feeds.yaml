@@ -92,6 +92,16 @@ feeds:
     enabled: true
     platform: muse
 
+  # Muse fusion lane, LinkedIn timeline/feed edition (import-only): jobs
+  # shared as timeline posts are imported with
+  # `job-agent muse import-feed <file.json|file.csv>`. Same as `muse`:
+  # no endpoint to fetch, parser returns [].
+  - name: muse_feed
+    kind: muse_feed
+    url: ""
+    enabled: true
+    platform: muse
+
   # ATS job boards - supply a real board token, then enable. Disabled by
   # default so an unconfigured token never produces noisy failed requests.
   - name: greenhouse_example

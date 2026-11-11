@@ -33,6 +33,13 @@ from job_agent.discovery.muse import (
     parse_muse_file,
     to_posting,
 )
+from job_agent.discovery.muse_feed import (
+    FEED_SOURCE,
+    feed_post_to_posting,
+    import_feed_jobs,
+    parse_feed_file,
+    render_feed_connection_note,
+)
 
 __all__ = [
     "FeedHub",
@@ -47,6 +54,11 @@ __all__ = [
     "import_muse_jobs",
     "parse_muse_file",
     "to_posting",
+    "FEED_SOURCE",
+    "import_feed_jobs",
+    "parse_feed_file",
+    "feed_post_to_posting",
+    "render_feed_connection_note",
     "DEFAULT_EGO_LOCATIONS",
     "DEFAULT_EGO_PLATFORMS",
     "DEFAULT_EGO_QUERIES",

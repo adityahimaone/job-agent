@@ -60,6 +60,23 @@ queries per run.
    company, location, and link. If nothing new was found anywhere, say
    so in one line — no empty report, no hype.
 
+## LinkedIn feed step (proposed, not yet live)
+
+The daily cron does not yet read the LinkedIn timeline. Proposed addition,
+to be approved by Aditya before it runs:
+
+* After step 2, Muse scrolls the signed-in LinkedIn home feed
+  (`linkedin.com/feed`) once, human-paced, and records hiring posts it has
+  not seen before into `/tmp/muse_feed_<YYYY-MM-DD>.json` (format in
+  `docs/MUSE_FEED.md`), then runs
+  `job-agent muse import-feed /tmp/muse_feed_<YYYY-MM-DD>.json --profile
+  config/profiles/aditya.yaml` on the VPS.
+* At most ~10 posts kept per run; never invent title/company/salary;
+  never click Connect or send a message; stop on a checkpoint/CAPTCHA.
+* The report adds one line: how many feed posts were seen, how many
+  became jobs, and the top queued feed job (with the poster, so Aditya can
+  decide about connecting — see `muse feed-note`).
+
 ## Queries (from `config/profiles/aditya.yaml`)
 
 Primary queries — Design Engineer / Frontend Engineer (React, Design
