@@ -76,6 +76,18 @@ _NOISE_WORDS = frozenset(
     }
 )
 
+_THIN_DESCRIPTION_WORDS = 40
+# A description shorter than this carries too little evidence to trust a
+# low AI/JEV score: Muse/Ego imports are often one line ("Frontend
+# Developer. Singapore."). Thin jobs are floored (see below) instead of
+# being dropped, so a human reviews them.
+_THIN_FLOOR_ROLE_ONLY = 0.55  # thin desc, frontend title, <2 stack skills
+_THIN_FLOOR_WITH_STACK = 0.60  # thin desc, frontend title, >=2 stack skills
+_FRONTEND_ROLE_RE = re.compile(
+    r"front[\s\-]?end|ui[\s\-]?engineer|ui/frontend|web developer",
+    re.IGNORECASE,
+)
+
 
 @dataclass
 class MatchScore:
@@ -114,13 +126,79 @@ class JobMatcher:
         return False
 
     @staticmethod
-    def _has_skill_overlap(description: str, skills: list[str]) -> bool:
-        """Check if the description mentions any of the given skills."""
-        desc_lower = description.lower()
+    def _matched_skills_in(text: str, skills: list[str]) -> list[str]:
+        """Skills from the list that appear in the given text.
+
+        Short skills (<=3 chars, e.g. "Go") match on word boundaries only:
+        a plain substring check would match "going", "good" or "Google".
+        Longer skills keep the substring check so "React" still matches
+        "React.js" and "Tailwind CSS" still matches "Tailwind CSS,".
+        """
+        hay = (text or "").lower()
+        found: list[str] = []
         for skill in skills:
-            if skill.lower() in desc_lower:
-                return True
-        return False
+            s = (skill or "").lower().strip()
+            if not s:
+                continue
+            if len(s) <= 3:
+                if re.search(rf"\b{re.escape(s)}\b", hay):
+                    found.append(skill)
+            elif s in hay:
+                found.append(skill)
+        return found
+
+    @staticmethod
+    def _has_skill_overlap(text: str, skills: list[str]) -> bool:
+        """Check if the text mentions any of the given skills."""
+        return bool(JobMatcher._matched_skills_in(text, skills))
+
+    @staticmethod
+    def _is_thin_description(description: str | None) -> bool:
+        """True when a description is too short to judge fit from."""
+        return len((description or "").split()) < _THIN_DESCRIPTION_WORDS
+
+    @staticmethod
+    def _thin_description_floor(job: JobPosting, all_skills: list[str]) -> float | None:
+        """Score floor for thin-description frontend roles, or None.
+
+        JEV/chat scores for one-line postings cluster around 0.29-0.52 even
+        when the role is a genuine fit (title + a stack word or two is all
+        the evidence there is). The floor sends those jobs to human review
+        (the 0.55 queue threshold) instead of silently dropping them.
+        It never applies to rich descriptions, non-frontend titles, or
+        jobs that already scored above the floor.
+        """
+        if not JobMatcher._is_thin_description(job.description):
+            return None
+        if not _FRONTEND_ROLE_RE.search(job.title or ""):
+            return None
+        matched = JobMatcher._matched_skills_in(
+            f"{job.title} {job.description}", all_skills or []
+        )
+        return _THIN_FLOOR_WITH_STACK if len(matched) >= 2 else _THIN_FLOOR_ROLE_ONLY
+
+    def _apply_thin_floor(
+        self, result: MatchScore, job: JobPosting, all_skills: list[str]
+    ) -> MatchScore:
+        """Lift a thin-evidence score to its floor; never masks a failure."""
+        if "match_error" in result.red_flags or "parse_error" in result.red_flags:
+            return result
+        floor = self._thin_description_floor(job, all_skills)
+        if floor is None or result.score >= floor:
+            return result
+        desc_words = len((job.description or "").split())
+        result.score = floor
+        result.reasoning = (
+            result.reasoning
+            + f" Thin description ({desc_words} words): title shows a frontend "
+            f"role, so the score is floored at {floor:.2f} for human review "
+            "instead of trusting a thin-evidence score."
+        )
+        if "thin_description_floor" not in result.red_flags:
+            result.red_flags.append("thin_description_floor")
+        if result.role_fit in ("", "none"):
+            result.role_fit = "possible"
+        return result
 
     def match(self, job: JobPosting, profile: dict[str, Any]) -> MatchScore:
         """Score a job posting against a candidate profile."""
@@ -174,28 +252,44 @@ class JobMatcher:
                 red_flags=["title_mismatch"],
             )
 
-        # Pre-filter: description must mention at least one required or preferred skill
+        # Pre-filter: title+description must mention at least one required
+        # or preferred skill. The title counts too: a title like
+        # "React Developer" is skill evidence even when the description
+        # is one line. Thin descriptions are the exception: a one-line
+        # Muse/Ego import ("Frontend Developer. Singapore.") carries no
+        # skill words at all, so a strict check hard-zeroed real frontend
+        # roles (FINN, StarHub, Capgemini, Coinbase, GudangAda all scored
+        # 0.00 this way). When the description is thin AND the title
+        # itself is a frontend role, let the job through to scoring —
+        # the thin-description floor decides its fate instead of a 0.00.
         skills_config = profile.get("skills", {})
         all_skills = skills_config.get("required", []) + skills_config.get(
             "preferred", []
         )
-        if (
-            all_skills
-            and job.description
-            and not self._has_skill_overlap(job.description, all_skills)
-        ):
-            log.info(
-                "prefilter_skill_skip",
-                job_title=job.title,
-                reason="no skill overlap",
-            )
-            return MatchScore(
-                score=0.0,
-                reasoning="No required or preferred skills found in job description.",
-                red_flags=["no_skill_overlap"],
-            )
+        combined_text = f"{job.title} {job.description}"
+        if all_skills and not self._has_skill_overlap(combined_text, all_skills):
+            if self._is_thin_description(job.description) and _FRONTEND_ROLE_RE.search(
+                job.title or ""
+            ):
+                log.info(
+                    "prefilter_skill_thin_bypass",
+                    job_title=job.title,
+                    reason="thin description, frontend title",
+                )
+            else:
+                log.info(
+                    "prefilter_skill_skip",
+                    job_title=job.title,
+                    reason="no skill overlap",
+                )
+                return MatchScore(
+                    score=0.0,
+                    reasoning="No required or preferred skills found in job description.",
+                    red_flags=["no_skill_overlap"],
+                )
 
         # JEV primary when configured: structured 0-1 fit, no chat cost.
+        result: MatchScore | None = None
         if jev_enabled():
             skills = profile.get("skills", {})
             search = profile.get("search", {})
@@ -214,11 +308,10 @@ class JobMatcher:
             )
             fit = score_fit(state)
             if fit is not None:
-                desc = (job.description or "").lower()
-                all_skills = skills.get("required", []) + skills.get("preferred", [])
-                matched = [s for s in all_skills if s.lower() in desc]
-                missing = [s for s in all_skills if s.lower() not in desc]
-                return MatchScore(
+                # Skills in the title count too (see pre-filter above).
+                matched = self._matched_skills_in(combined_text, all_skills)
+                missing = [s for s in all_skills if s not in matched]
+                result = MatchScore(
                     score=fit,
                     reasoning=f"JEV fit score {fit:.2f} (typesafe jev, structured).",
                     role_fit=(
@@ -233,43 +326,46 @@ class JobMatcher:
                     red_flags=["jev_scored"] if fit >= 0.70 else ["jev_low_fit"],
                 )
 
-        # Build prompt
-        skills = profile.get("skills", {})
-        search = profile.get("search", {})
-        prompt = JOB_MATCH_TEMPLATE.render(
-            job_title=job.title,
-            company=job.company,
-            location=job.location,
-            description=job.description[:6000],  # Truncate very long descriptions
-            profile_name=profile.get("name", ""),
-            required_skills=skills.get("required", []),
-            preferred_skills=skills.get("preferred", []),
-            experience_level=search.get("experience_level", ""),
-            remote_preference=search.get("remote_preference", ""),
-            salary_minimum=search.get("salary_minimum", "Not specified"),
-            excluded_companies=exclusions.get("companies", []),
-            excluded_keywords=exclusions.get("keywords", []),
-            employment_type=getattr(job, "employment_type", "") or "not stated",
-            remote_policy=getattr(job, "remote_policy", "") or "not stated",
-            timezone=getattr(job, "timezone", "") or "not stated",
-            candidate_constraints=_constraints_text(search),
-        )
+        if result is None:
+            # Build prompt
+            skills = profile.get("skills", {})
+            search = profile.get("search", {})
+            prompt = JOB_MATCH_TEMPLATE.render(
+                job_title=job.title,
+                company=job.company,
+                location=job.location,
+                description=job.description[:6000],  # Truncate very long descriptions
+                profile_name=profile.get("name", ""),
+                required_skills=skills.get("required", []),
+                preferred_skills=skills.get("preferred", []),
+                experience_level=search.get("experience_level", ""),
+                remote_preference=search.get("remote_preference", ""),
+                salary_minimum=search.get("salary_minimum", "Not specified"),
+                excluded_companies=exclusions.get("companies", []),
+                excluded_keywords=exclusions.get("keywords", []),
+                employment_type=getattr(job, "employment_type", "") or "not stated",
+                remote_policy=getattr(job, "remote_policy", "") or "not stated",
+                timezone=getattr(job, "timezone", "") or "not stated",
+                candidate_constraints=_constraints_text(search),
+            )
 
-        try:
-            response = self.ai.complete(
-                prompt=prompt,
-                system="You are a precise job matching AI. Always respond with valid JSON only.",
-                temperature=0.2,
-            )
-            return self._parse_response(response)
-        except Exception as e:
-            log.error("match_failed", job_id=job.external_id, error=str(e))
-            # A failed match must never look like a neutral, queueable score.
-            return MatchScore(
-                score=0.0,
-                reasoning=f"Matching failed: {e}",
-                red_flags=["match_error"],
-            )
+            try:
+                response = self.ai.complete(
+                    prompt=prompt,
+                    system="You are a precise job matching AI. Always respond with valid JSON only.",
+                    temperature=0.2,
+                )
+                result = self._parse_response(response)
+            except Exception as e:
+                log.error("match_failed", job_id=job.external_id, error=str(e))
+                # A failed match must never look like a neutral, queueable score.
+                return MatchScore(
+                    score=0.0,
+                    reasoning=f"Matching failed: {e}",
+                    red_flags=["match_error"],
+                )
+
+        return self._apply_thin_floor(result, job, all_skills)
 
     def _parse_response(self, response: str) -> MatchScore:
         """Parse the AI response into a MatchScore."""

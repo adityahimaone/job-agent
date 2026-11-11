@@ -58,5 +58,9 @@ def test_jev_failure_falls_back_to_chat(monkeypatch):
 
     result = JobMatcher(_FakeAI()).match(JOB, PROFILE)
 
-    assert result.score == pytest.approx(0.42)
+    # Chat fallback still happens (0.42), but JOB is a thin frontend posting
+    # (7-word description, React + TypeScript), so the thin-description
+    # floor lifts it to 0.60 for human review.
+    assert result.score == pytest.approx(0.60)
+    assert "thin_description_floor" in result.red_flags
     assert _FakeAI.called is True
